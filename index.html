@@ -13,13 +13,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
-  <!-- Pre-declared static hooks for iOS Safari and Chrome Home Screen Icon detection -->
-  <link rel="apple-touch-icon" id="appleTouchIcon" href="">
-  <link rel="apple-touch-icon" id="appleTouchIcon180" sizes="180x180" href="">
-  <link rel="apple-touch-icon" id="appleTouchIcon152" sizes="152x152" href="">
-  <link rel="apple-touch-icon-precomposed" id="appleTouchIconPre" href="">
-  <link rel="icon" id="dynamicFavicon" href="">
-  <link rel="manifest" id="dynamicManifestLink">
   <meta name="theme-color" id="dynamicThemeColor" content="#0f172a">
 
   <script>
@@ -76,6 +69,15 @@
 
       if (!activeAppId) return; // Stay in Parent Studio mode
 
+      // Helper function to render into the DOM safely regardless of event timing
+      function renderWhenReady(callback) {
+        if (document.readyState === 'interactive' || document.readyState === 'complete') {
+          callback();
+        } else {
+          document.addEventListener('DOMContentLoaded', callback, { once: true });
+        }
+      }
+
       try {
         // 1. Check localStorage first
         const rawData = localStorage.getItem('parent_studio_apps');
@@ -88,13 +90,13 @@
         }
 
         if (!childApp) {
-          window.addEventListener('DOMContentLoaded', () => {
+          renderWhenReady(() => {
             document.body.innerHTML = `
               <div class="min-h-screen bg-slate-50 text-slate-800 flex flex-col items-center justify-center p-6 text-center font-sans">
                 <div class="bg-white border border-slate-200 p-8 rounded-2xl max-w-md shadow-sm">
                   <div class="w-12 h-12 bg-red-50 text-red-500 rounded-xl flex items-center justify-center text-xl mx-auto mb-3">⚠️</div>
                   <h1 class="text-lg font-bold text-slate-900 mb-1">App Not Found</h1>
-                  <p class="text-slate-500 text-sm mb-5">Could not find "<strong>${activeAppId}</strong>". If you opened this on a different device, create it directly from this device.</p>
+                  <p class="text-slate-500 text-sm mb-5">Could not find "<strong>${activeAppId}</strong>". If you opened this on your phone, make sure you created the app directly from this phone's browser.</p>
                   <a href="${window.location.pathname}" class="inline-block px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors">Return to Studio</a>
                 </div>
               </div>
@@ -114,11 +116,32 @@
         const fallbackIcon = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgIcon)}`;
         const effectiveIcon = (childApp.iconUrl && childApp.iconUrl.trim()) ? childApp.iconUrl.trim() : fallbackIcon;
 
-        // Preload icon into browser cache immediately for iOS Safari snapshotting
+        // Preload icon immediately into browser cache
         const iconPreload = new Image();
         iconPreload.crossOrigin = "anonymous";
         iconPreload.src = effectiveIcon;
 
+        // 3. Update or inject Apple Touch Icons (for iOS Safari Home Screen)
+        document.querySelectorAll('link[rel*="apple-touch-icon"]').forEach(el => el.remove());
+        const appleIconSizes = ['', '180x180', '152x152', '167x167', '120x120'];
+        appleIconSizes.forEach(size => {
+          const link = document.createElement('link');
+          link.rel = 'apple-touch-icon';
+          if (size) link.setAttribute('sizes', size);
+          link.href = effectiveIcon;
+          document.head.appendChild(link);
+        });
+
+        // 4. Update Favicon
+        let dynamicFavicon = document.querySelector('link[rel="icon"]');
+        if (!dynamicFavicon) {
+          dynamicFavicon = document.createElement('link');
+          dynamicFavicon.rel = 'icon';
+          document.head.appendChild(dynamicFavicon);
+        }
+        dynamicFavicon.href = effectiveIcon;
+
+        // 5. Update Web App Manifest via Data URI (reliable for Android Chrome WebAPK)
         const manifestObj = {
           name: childApp.title,
           short_name: (childApp.title || "App").substring(0, 12),
@@ -152,45 +175,45 @@
           ]
         };
 
-        // 4. Update the pre-declared Manifest Link via Blob URL
-        const manifestBlob = new Blob([JSON.stringify(manifestObj)], { type: 'application/manifest+json' });
-        const manifestUrl = URL.createObjectURL(manifestBlob);
-        const manifestLink = document.getElementById('dynamicManifestLink');
-        if (manifestLink) {
-          manifestLink.href = manifestUrl;
+        const manifestDataUri = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifestObj));
+        let manifestLink = document.querySelector('link[rel="manifest"]');
+        if (!manifestLink) {
+          manifestLink = document.createElement('link');
+          manifestLink.rel = 'manifest';
+          document.head.appendChild(manifestLink);
         }
+        manifestLink.href = manifestDataUri;
 
-        // 5. Update pre-declared iOS Apple Touch Icons and Favicon
-        const appleIcon = document.getElementById('appleTouchIcon');
-        if (appleIcon) appleIcon.href = effectiveIcon;
-        const appleIcon180 = document.getElementById('appleTouchIcon180');
-        if (appleIcon180) appleIcon180.href = effectiveIcon;
-        const appleIcon152 = document.getElementById('appleTouchIcon152');
-        if (appleIcon152) appleIcon152.href = effectiveIcon;
-        const appleIconPre = document.getElementById('appleTouchIconPre');
-        if (appleIconPre) appleIconPre.href = effectiveIcon;
-        const dynamicFavicon = document.getElementById('dynamicFavicon');
-        if (dynamicFavicon) dynamicFavicon.href = effectiveIcon;
-
-        const themeMeta = document.getElementById('dynamicThemeColor');
+        // 6. Meta mobile headers
+        const themeMeta = document.getElementById('dynamicThemeColor') || document.querySelector('meta[name="theme-color"]');
         if (themeMeta) themeMeta.content = appBgColor;
 
-        const metaCapable = document.createElement('meta');
-        metaCapable.name = "apple-mobile-web-app-capable";
-        metaCapable.content = "yes";
-        document.head.appendChild(metaCapable);
+        let metaCapable = document.querySelector('meta[name="apple-mobile-web-app-capable"]');
+        if (!metaCapable) {
+          metaCapable = document.createElement('meta');
+          metaCapable.name = "apple-mobile-web-app-capable";
+          metaCapable.content = "yes";
+          document.head.appendChild(metaCapable);
+        }
 
-        const metaBar = document.createElement('meta');
-        metaBar.name = "apple-mobile-web-app-status-bar-style";
-        metaBar.content = "black-translucent";
-        document.head.appendChild(metaBar);
+        let metaBar = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+        if (!metaBar) {
+          metaBar = document.createElement('meta');
+          metaBar.name = "apple-mobile-web-app-status-bar-style";
+          metaBar.content = "black-translucent";
+          document.head.appendChild(metaBar);
+        }
 
-        const metaTitle = document.createElement('meta');
-        metaTitle.name = "apple-mobile-web-app-title";
+        let metaTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+        if (!metaTitle) {
+          metaTitle = document.createElement('meta');
+          metaTitle.name = "apple-mobile-web-app-title";
+          document.head.appendChild(metaTitle);
+        }
         metaTitle.content = childApp.title;
-        document.head.appendChild(metaTitle);
 
-        window.addEventListener('DOMContentLoaded', () => {
+        // 7. Mount the child app code inside full-bleed isolated iframe
+        renderWhenReady(() => {
           document.body.style.margin = "0";
           document.body.style.padding = "0";
           document.body.style.overflow = "hidden";
@@ -199,8 +222,8 @@
           document.body.style.background = appBgColor;
 
           const frame = document.createElement('iframe');
-          frame.style.width = "100%";
-          frame.style.height = "100%";
+          frame.style.width = "100vw";
+          frame.style.height = "100vh";
           frame.style.border = "none";
           frame.style.display = "block";
           frame.style.background = appBgColor;
