@@ -36,26 +36,31 @@
   </script>
 
   <script>
-    /* Base64 UTF-8 Helpers to preserve app payload across isolated home screen containers */
-    function encodePayload(obj) {
-      try {
-        const str = JSON.stringify(obj);
-        const bytes = new TextEncoder().encode(str);
-        let bin = '';
-        for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-        return btoa(bin);
-      } catch (e) {
-        return '';
-      }
+    // Open or create an IndexedDB store to ensure persistence across standalone containers
+    function openAppDatabase() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open('AppStudioDB', 1);
+        req.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains('apps')) {
+            db.createObjectStore('apps', { keyPath: 'id' });
+          }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
     }
 
-    function decodePayload(b64) {
+    async function getChildAppFromDB(id) {
       try {
-        const bin = atob(b64);
-        const bytes = new Uint8Array(bin.length);
-        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-        const str = new TextDecoder().decode(bytes);
-        return JSON.parse(str);
+        const db = await openAppDatabase();
+        return new Promise((resolve) => {
+          const tx = db.transaction('apps', 'readonly');
+          const store = tx.objectStore('apps');
+          const req = store.get(id);
+          req.onsuccess = () => resolve(req.result || null);
+          req.onerror = () => resolve(null);
+        });
       } catch (e) {
         return null;
       }
@@ -63,35 +68,23 @@
 
     /*
      * DYNAMIC PWA & ROUTING LOGIC:
-     * Check if URL has '?app=<id>'.
-     * Checks localStorage, with automatic fallback & restore from the encoded URL parameter.
+     * Clean, short URL: ?app=<id> without bloated URI encoding that crashes mobile browsers.
      */
-    (function checkChildRoute() {
+    (async function checkChildRoute() {
       const urlParams = new URLSearchParams(window.location.search);
       const activeAppId = urlParams.get('app');
 
       if (!activeAppId) return; // Stay in Parent Studio mode
 
       try {
+        // 1. Check localStorage first
         const rawData = localStorage.getItem('parent_studio_apps');
         let apps = rawData ? JSON.parse(rawData) : {};
         let childApp = apps[activeAppId];
 
-        // Fallback: If opened inside standalone home screen container where localStorage is isolated,
-        // restore directly from the encoded payload in the query or hash.
+        // 2. Fallback to IndexedDB (shared reliably on same domain)
         if (!childApp) {
-          const dParam = urlParams.get('d');
-          if (dParam) {
-            childApp = decodePayload(dParam);
-          } else if (window.location.hash && window.location.hash.includes('data=')) {
-            childApp = decodePayload(window.location.hash.split('data=')[1]);
-          }
-
-          // If recovered, persist into the home screen app's isolated storage
-          if (childApp && childApp.id) {
-            apps[childApp.id] = childApp;
-            localStorage.setItem('parent_studio_apps', JSON.stringify(apps));
-          }
+          childApp = await getChildAppFromDB(activeAppId);
         }
 
         if (!childApp) {
@@ -101,7 +94,7 @@
                 <div class="bg-white border border-slate-200 p-8 rounded-2xl max-w-md shadow-sm">
                   <div class="w-12 h-12 bg-red-50 text-red-500 rounded-xl flex items-center justify-center text-xl mx-auto mb-3">⚠️</div>
                   <h1 class="text-lg font-bold text-slate-900 mb-1">App Not Found</h1>
-                  <p class="text-slate-500 text-sm mb-5">Could not find "<strong>${activeAppId}</strong>" in this container.</p>
+                  <p class="text-slate-500 text-sm mb-5">Could not find "<strong>${activeAppId}</strong>". If you opened this on a different device, create it directly from this device.</p>
                   <a href="${window.location.pathname}" class="inline-block px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors">Return to Studio</a>
                 </div>
               </div>
@@ -430,9 +423,24 @@
       }
     });
 
-    btnCreateApp.addEventListener('click', () => {
+    async function saveAppToDatabase(appData) {
+      try {
+        const db = await openAppDatabase();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction('apps', 'readwrite');
+          const store = tx.objectStore('apps');
+          store.put(appData);
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error);
+        });
+      } catch (err) {
+        console.warn("IndexedDB save failed, falling back to localStorage only:", err);
+      }
+    }
+
+    btnCreateApp.addEventListener('click', async () => {
       const title = inputTitle.value.trim();
-      const rawIconUrl = inputIconUrl.value.trim();
+      const iconUrl = inputIconUrl.value.trim();
       const themeColor = inputThemeColor.value.trim() || '#0f172a';
       const code = inputCode.value;
 
@@ -448,68 +456,43 @@
         return;
       }
 
-      // Automatically generate backend slug ID and fallback emoji
+      // Automatically generate clean slug ID
       const id = title.toLowerCase().replace(/[^a-z0-9_-]/g, '-').replace(/-+/g, '-') || 'app-' + Date.now();
       const emoji = '⚡';
 
-      const finalizeSave = (iconToUse) => {
-        const appData = { id, title, iconUrl: iconToUse, emoji, themeColor, code, updatedAt: Date.now() };
+      const appData = { id, title, iconUrl, emoji, themeColor, code, updatedAt: Date.now() };
 
-        // Save to localStorage
-        try {
-          const stored = localStorage.getItem(STORAGE_KEY);
-          const apps = stored ? JSON.parse(stored) : {};
-          apps[id] = appData;
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(apps));
-        } catch (e) {
-          console.error("Storage error:", e);
-        }
-
-        // Generate self-sustaining URL
-        const encoded = encodePayload(appData);
-        const directUrl = `${window.location.origin}${window.location.pathname}?app=${encodeURIComponent(id)}&d=${encodeURIComponent(encoded)}`;
-
-        // Update Center Popup
-        modalAppTitle.innerText = title;
-        btnModalOpen.href = directUrl;
-
-        if (iconToUse) {
-          modalIconImg.src = iconToUse;
-          modalIconImg.classList.remove('hidden');
-          modalIconFallback.classList.add('hidden');
-        } else {
-          modalIconImg.classList.add('hidden');
-          modalIconFallback.classList.remove('hidden');
-        }
-
-        // Open Center Popup
-        modalOverlay.classList.remove('hidden');
-      };
-
-      // If user provided an icon URL, convert to local PNG Data URI if CORS allows, otherwise use raw URL
-      if (rawIconUrl) {
-        const testImg = new Image();
-        testImg.crossOrigin = 'anonymous';
-        testImg.onload = () => {
-          try {
-            const canvas = document.createElement('canvas');
-            canvas.width = 192;
-            canvas.height = 192;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(testImg, 0, 0, 192, 192);
-            const dataUri = canvas.toDataURL('image/png');
-            finalizeSave(dataUri);
-          } catch (err) {
-            finalizeSave(rawIconUrl);
-          }
-        };
-        testImg.onerror = () => {
-          finalizeSave(rawIconUrl);
-        };
-        testImg.src = rawIconUrl;
-      } else {
-        finalizeSave('');
+      // 1. Save to localStorage
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        const apps = stored ? JSON.parse(stored) : {};
+        apps[id] = appData;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(apps));
+      } catch (e) {
+        console.error("Storage error:", e);
       }
+
+      // 2. Save to IndexedDB (for persistence across isolated containers)
+      await saveAppToDatabase(appData);
+
+      // 3. Generate clean, valid URL without giant base64 payloads
+      const directUrl = `${window.location.origin}${window.location.pathname}?app=${encodeURIComponent(id)}`;
+
+      // Update Center Popup
+      modalAppTitle.innerText = title;
+      btnModalOpen.href = directUrl;
+
+      if (iconUrl) {
+        modalIconImg.src = iconUrl;
+        modalIconImg.classList.remove('hidden');
+        modalIconFallback.classList.add('hidden');
+      } else {
+        modalIconImg.classList.add('hidden');
+        modalIconFallback.classList.remove('hidden');
+      }
+
+      // Open Center Popup
+      modalOverlay.classList.remove('hidden');
     });
   </script>
 </body>
