@@ -29,6 +29,8 @@
   </script>
 
   <script>
+    const STORAGE_KEY = 'parent_studio_apps';
+
     // Open or create an IndexedDB store to ensure persistence across standalone containers
     function openAppDatabase() {
       return new Promise((resolve, reject) => {
@@ -59,17 +61,33 @@
       }
     }
 
+    // Resolves app ID from both query (?app=) and hash (#app=), protecting against GitHub Pages redirects
+    function getTargetAppId() {
+      const urlParams = new URLSearchParams(window.location.search);
+      let id = urlParams.get('app');
+      if (!id && window.location.hash) {
+        const cleanHash = window.location.hash.replace(/^#/, '');
+        const hashParams = new URLSearchParams(cleanHash);
+        id = hashParams.get('app') || cleanHash;
+      }
+      return id;
+    }
+
     /*
-     * DYNAMIC PWA & ROUTING LOGIC:
-     * Clean, short URL: ?app=<id> without bloated URI encoding that crashes mobile browsers.
+     * DYNAMIC GITHUB PAGES & PWA ROUTER:
+     * Executes synchronously where possible to ensure icons and titles register before mobile browsers snapshot the page.
      */
     (async function checkChildRoute() {
-      const urlParams = new URLSearchParams(window.location.search);
-      const activeAppId = urlParams.get('app');
+      const activeAppId = getTargetAppId();
+      if (!activeAppId) return; // Stay in Parent Studio
 
-      if (!activeAppId) return; // Stay in Parent Studio mode
+      // Immediately hide parent studio layout to prevent flashing
+      const styleHide = document.createElement('style');
+      styleHide.id = 'childAppPreloadStyle';
+      styleHide.textContent = 'body > * { display: none !important; }';
+      document.head.appendChild(styleHide);
 
-      // Helper function to render into the DOM safely regardless of event timing
+      // Helper function to mount child into DOM
       function renderWhenReady(callback) {
         if (document.readyState === 'interactive' || document.readyState === 'complete') {
           callback();
@@ -79,24 +97,30 @@
       }
 
       try {
-        // 1. Check localStorage first
-        const rawData = localStorage.getItem('parent_studio_apps');
-        let apps = rawData ? JSON.parse(rawData) : {};
-        let childApp = apps[activeAppId];
+        // 1. Check synchronous localStorage first
+        let childApp = null;
+        try {
+          const rawData = localStorage.getItem(STORAGE_KEY);
+          const apps = rawData ? JSON.parse(rawData) : {};
+          childApp = apps[activeAppId];
+        } catch (e) {
+          console.warn("localStorage read warning:", e);
+        }
 
-        // 2. Fallback to IndexedDB (shared reliably on same domain)
+        // 2. Fallback to IndexedDB (shared reliably across mobile containers)
         if (!childApp) {
           childApp = await getChildAppFromDB(activeAppId);
         }
 
         if (!childApp) {
           renderWhenReady(() => {
+            if (styleHide.parentNode) styleHide.parentNode.removeChild(styleHide);
             document.body.innerHTML = `
               <div class="min-h-screen bg-slate-50 text-slate-800 flex flex-col items-center justify-center p-6 text-center font-sans">
                 <div class="bg-white border border-slate-200 p-8 rounded-2xl max-w-md shadow-sm">
                   <div class="w-12 h-12 bg-red-50 text-red-500 rounded-xl flex items-center justify-center text-xl mx-auto mb-3">⚠️</div>
                   <h1 class="text-lg font-bold text-slate-900 mb-1">App Not Found</h1>
-                  <p class="text-slate-500 text-sm mb-5">Could not find "<strong>${activeAppId}</strong>". If you opened this on your phone, make sure you created the app directly from this phone's browser.</p>
+                  <p class="text-slate-500 text-sm mb-5">Could not find "<strong>${activeAppId}</strong>". If you opened this on your phone, make sure to create the app directly using this phone's browser.</p>
                   <a href="${window.location.pathname}" class="inline-block px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors">Return to Studio</a>
                 </div>
               </div>
@@ -105,23 +129,26 @@
           return;
         }
 
-        // 1. Set document Title
-        document.title = childApp.title || "Child App";
-
+        // 1. Set Document Title
+        document.title = childApp.title || "My App";
         const appBgColor = childApp.themeColor || '#0f172a';
 
         // 2. Resolve Hosted Image Icon or SVG fallback
-        const appEmoji = childApp.emoji || '⚡';
-        const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="${appBgColor}"/><text y=".9em" x="50%" text-anchor="middle" font-size="70">${appEmoji}</text></svg>`;
-        const fallbackIcon = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgIcon)}`;
-        const effectiveIcon = (childApp.iconUrl && childApp.iconUrl.trim()) ? childApp.iconUrl.trim() : fallbackIcon;
+        const fallbackSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="${appBgColor}"/><text y=".9em" x="50%" text-anchor="middle" font-size="70">⚡</text></svg>`;
+        const fallbackIcon = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(fallbackSvg)}`;
+        
+        let effectiveIcon = (childApp.iconUrl && childApp.iconUrl.trim()) ? childApp.iconUrl.trim() : fallbackIcon;
+        // Ensure https:// on hosted image to prevent mixed content blocking on GitHub Pages
+        if (effectiveIcon.startsWith('http://')) {
+          effectiveIcon = effectiveIcon.replace('http://', 'https://');
+        }
 
-        // Preload icon immediately into browser cache
+        // Preload image to browser cache
         const iconPreload = new Image();
         iconPreload.crossOrigin = "anonymous";
         iconPreload.src = effectiveIcon;
 
-        // 3. Update or inject Apple Touch Icons (for iOS Safari Home Screen)
+        // 3. Inject Apple Touch Icons for iOS Safari Home Screen
         document.querySelectorAll('link[rel*="apple-touch-icon"]').forEach(el => el.remove());
         const appleIconSizes = ['', '180x180', '152x152', '167x167', '120x120'];
         appleIconSizes.forEach(size => {
@@ -141,7 +168,7 @@
         }
         dynamicFavicon.href = effectiveIcon;
 
-        // 5. Update Web App Manifest via Data URI (reliable for Android Chrome WebAPK)
+        // 5. Update Web App Manifest (Data URI for Android WebAPK)
         const manifestObj = {
           name: childApp.title,
           short_name: (childApp.title || "App").substring(0, 12),
@@ -152,26 +179,10 @@
           background_color: appBgColor,
           theme_color: appBgColor,
           icons: [
-            {
-              src: effectiveIcon,
-              sizes: "192x192",
-              purpose: "any"
-            },
-            {
-              src: effectiveIcon,
-              sizes: "512x512",
-              purpose: "any"
-            },
-            {
-              src: effectiveIcon,
-              sizes: "192x192",
-              purpose: "maskable"
-            },
-            {
-              src: effectiveIcon,
-              sizes: "512x512",
-              purpose: "maskable"
-            }
+            { src: effectiveIcon, sizes: "192x192", type: "image/png", purpose: "any" },
+            { src: effectiveIcon, sizes: "512x512", type: "image/png", purpose: "any" },
+            { src: effectiveIcon, sizes: "192x192", type: "image/png", purpose: "maskable" },
+            { src: effectiveIcon, sizes: "512x512", type: "image/png", purpose: "maskable" }
           ]
         };
 
@@ -212,8 +223,10 @@
         }
         metaTitle.content = childApp.title;
 
-        // 7. Mount the child app code inside full-bleed isolated iframe
+        // 7. Mount the child app code inside full-bleed isolated iframe using Blob URL
         renderWhenReady(() => {
+          if (styleHide.parentNode) styleHide.parentNode.removeChild(styleHide);
+
           document.body.style.margin = "0";
           document.body.style.padding = "0";
           document.body.style.overflow = "hidden";
@@ -228,7 +241,14 @@
           frame.style.display = "block";
           frame.style.background = appBgColor;
           frame.setAttribute('allow', 'fullscreen; geolocation; microphone; camera; midi');
-          frame.srcdoc = childApp.code;
+
+          // Blob URL ensures zero character-escaping issues for complex code on GitHub Pages
+          try {
+            const blob = new Blob([childApp.code], { type: 'text/html;charset=utf-8' });
+            frame.src = URL.createObjectURL(blob);
+          } catch (e) {
+            frame.srcdoc = childApp.code;
+          }
 
           document.body.innerHTML = '';
           document.body.appendChild(frame);
@@ -281,11 +301,10 @@
     </div>
   </header>
 
-  <!-- Main Content Form -->
   <main class="max-w-3xl w-full mx-auto p-4 sm:p-6 flex-1 flex flex-col justify-start">
     <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
       
-      <!-- Frontend Inputs: App Name, Hosted Image URL & Splash Color -->
+      <!-- Inputs: App Name, Hosted Image URL & Splash Color -->
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
         <div>
           <label class="block text-xs font-medium text-slate-700 mb-1">App Name</label>
@@ -327,7 +346,6 @@
     </div>
   </main>
 
-  <!-- Center Success Popup Modal -->
   <div id="modalOverlay" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white border border-slate-200 rounded-2xl p-6 max-w-sm w-full shadow-xl text-center flex flex-col items-center animate-in fade-in zoom-in-95 duration-150">
       <div id="modalIconContainer" class="w-16 h-16 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center overflow-hidden mb-4 shadow-sm">
@@ -335,13 +353,16 @@
         <span id="modalIconFallback" class="text-2xl">⚡</span>
       </div>
       <h3 id="modalAppTitle" class="text-lg font-bold text-slate-900 mb-1">App Ready</h3>
-      <p class="text-xs text-slate-500 mb-6">Your app has been generated successfully.</p>
+      <p class="text-xs text-slate-500 mb-5">Your standalone app link has been created.</p>
       
       <div class="flex flex-col w-full gap-2">
         <a id="btnModalOpen" target="_blank" href="#" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm transition-all shadow-sm flex items-center justify-center gap-2">
           Open the App
         </a>
-        <button id="btnModalClose" class="w-full py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs transition-all">
+        <button id="btnModalOpenSameTab" class="w-full py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs transition-all">
+          Launch in Current Tab
+        </button>
+        <button id="btnModalClose" class="w-full py-2 rounded-xl text-slate-500 hover:text-slate-700 text-xs transition-all">
           Close
         </button>
       </div>
@@ -355,8 +376,6 @@
   </div>
 
   <script>
-    const STORAGE_KEY = 'parent_studio_apps';
-
     // DOM Elements
     const inputTitle = document.getElementById('inputTitle');
     const inputIconUrl = document.getElementById('inputIconUrl');
@@ -374,7 +393,10 @@
     const modalIconImg = document.getElementById('modalIconImg');
     const modalIconFallback = document.getElementById('modalIconFallback');
     const btnModalOpen = document.getElementById('btnModalOpen');
+    const btnModalOpenSameTab = document.getElementById('btnModalOpenSameTab');
     const btnModalClose = document.getElementById('btnModalClose');
+
+    let currentGeneratedUrl = '';
 
     inputColorPicker.addEventListener('input', () => {
       inputThemeColor.value = inputColorPicker.value;
@@ -389,7 +411,10 @@
 
     // Live update icon preview
     inputIconUrl.addEventListener('input', () => {
-      const url = inputIconUrl.value.trim();
+      let url = inputIconUrl.value.trim();
+      if (url.startsWith('http://')) {
+        url = url.replace('http://', 'https://');
+      }
       if (url) {
         iconPreviewImg.src = url;
         iconPreviewImg.onload = () => {
@@ -446,6 +471,12 @@
       }
     });
 
+    btnModalOpenSameTab.addEventListener('click', () => {
+      if (currentGeneratedUrl) {
+        window.location.href = currentGeneratedUrl;
+      }
+    });
+
     async function saveAppToDatabase(appData) {
       try {
         const db = await openAppDatabase();
@@ -461,9 +492,18 @@
       }
     }
 
+    // Resolves accurate base path without triggering GitHub Pages 301 query stripping
+    function getNormalizedBasePath() {
+      let path = window.location.pathname;
+      if (!path.endsWith('/') && !path.split('/').pop().includes('.')) {
+        path += '/';
+      }
+      return `${window.location.origin}${path}`;
+    }
+
     btnCreateApp.addEventListener('click', async () => {
       const title = inputTitle.value.trim();
-      const iconUrl = inputIconUrl.value.trim();
+      let iconUrl = inputIconUrl.value.trim();
       const themeColor = inputThemeColor.value.trim() || '#0f172a';
       const code = inputCode.value;
 
@@ -479,13 +519,15 @@
         return;
       }
 
+      if (iconUrl.startsWith('http://')) {
+        iconUrl = iconUrl.replace('http://', 'https://');
+      }
+
       // Automatically generate clean slug ID
       const id = title.toLowerCase().replace(/[^a-z0-9_-]/g, '-').replace(/-+/g, '-') || 'app-' + Date.now();
-      const emoji = '⚡';
+      const appData = { id, title, iconUrl, themeColor, code, updatedAt: Date.now() };
 
-      const appData = { id, title, iconUrl, emoji, themeColor, code, updatedAt: Date.now() };
-
-      // 1. Save to localStorage
+      // 1. Save synchronously to localStorage
       try {
         const stored = localStorage.getItem(STORAGE_KEY);
         const apps = stored ? JSON.parse(stored) : {};
@@ -495,15 +537,16 @@
         console.error("Storage error:", e);
       }
 
-      // 2. Save to IndexedDB (for persistence across isolated containers)
+      // 2. Save asynchronously to IndexedDB (shared reliably on same domain)
       await saveAppToDatabase(appData);
 
-      // 3. Generate clean, valid URL without giant base64 payloads
-      const directUrl = `${window.location.origin}${window.location.pathname}?app=${encodeURIComponent(id)}`;
+      // 3. Construct URL protected against GitHub Pages redirect stripping
+      const base = getNormalizedBasePath();
+      currentGeneratedUrl = `${base}?app=${encodeURIComponent(id)}#app=${encodeURIComponent(id)}`;
 
       // Update Center Popup
       modalAppTitle.innerText = title;
-      btnModalOpen.href = directUrl;
+      btnModalOpen.href = currentGeneratedUrl;
 
       if (iconUrl) {
         modalIconImg.src = iconUrl;
