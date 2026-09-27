@@ -29,9 +29,381 @@
   </script>
 
   <script>
+    /*
+     * Compact, URL-Safe LZ Compressor & Decompressor
+     * Enables complete offline self-hydration across isolated Home Screen containers
+     * without triggering GitHub Pages 414 Request URI limits.
+     */
+    const LZ = {
+      _k: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$",
+      compress: function(uncompressed) {
+        if (!uncompressed) return "";
+        let i, value,
+            context_dictionary = {},
+            context_dictionaryToCreate = {},
+            context_c = "",
+            context_wc = "",
+            context_w = "",
+            context_enlargeIn = 2,
+            context_dictSize = 3,
+            context_numBits = 2,
+            context_data = [],
+            context_data_val = 0,
+            context_data_position = 0,
+            ii;
+
+        for (ii = 0; ii < uncompressed.length; ii += 1) {
+          context_c = uncompressed.charAt(ii);
+          if (!Object.prototype.hasOwnProperty.call(context_dictionary, context_c)) {
+            context_dictionary[context_c] = context_dictSize++;
+            context_dictionaryToCreate[context_c] = true;
+          }
+          context_wc = context_w + context_c;
+          if (Object.prototype.hasOwnProperty.call(context_dictionary, context_wc)) {
+            context_w = context_wc;
+          } else {
+            if (Object.prototype.hasOwnProperty.call(context_dictionaryToCreate, context_w)) {
+              if (context_w.charCodeAt(0) < 256) {
+                for (i = 0; i < context_numBits; i++) {
+                  context_data_val = (context_data_val << 1);
+                  if (context_data_position == 5) {
+                    context_data_position = 0;
+                    context_data.push(LZ._k.charAt(context_data_val));
+                    context_data_val = 0;
+                  } else {
+                    context_data_position++;
+                  }
+                }
+                value = context_w.charCodeAt(0);
+                for (i = 0; i < 8; i++) {
+                  context_data_val = (context_data_val << 1) | (value & 1);
+                  if (context_data_position == 5) {
+                    context_data_position = 0;
+                    context_data.push(LZ._k.charAt(context_data_val));
+                    context_data_val = 0;
+                  } else {
+                    context_data_position++;
+                  }
+                  value = value >> 1;
+                }
+              } else {
+                value = 1;
+                for (i = 0; i < context_numBits; i++) {
+                  context_data_val = (context_data_val << 1) | value;
+                  if (context_data_position == 5) {
+                    context_data_position = 0;
+                    context_data.push(LZ._k.charAt(context_data_val));
+                    context_data_val = 0;
+                  } else {
+                    context_data_position++;
+                  }
+                  value = 0;
+                }
+                value = context_w.charCodeAt(0);
+                for (i = 0; i < 16; i++) {
+                  context_data_val = (context_data_val << 1) | (value & 1);
+                  if (context_data_position == 5) {
+                    context_data_position = 0;
+                    context_data.push(LZ._k.charAt(context_data_val));
+                    context_data_val = 0;
+                  } else {
+                    context_data_position++;
+                  }
+                  value = value >> 1;
+                }
+              }
+              context_enlargeIn--;
+              if (context_enlargeIn == 0) {
+                context_enlargeIn = Math.pow(2, context_numBits);
+                context_numBits++;
+              }
+              delete context_dictionaryToCreate[context_w];
+            } else {
+              value = context_dictionary[context_w];
+              for (i = 0; i < context_numBits; i++) {
+                context_data_val = (context_data_val << 1) | (value & 1);
+                if (context_data_position == 5) {
+                  context_data_position = 0;
+                  context_data.push(LZ._k.charAt(context_data_val));
+                  context_data_val = 0;
+                } else {
+                  context_data_position++;
+                }
+                value = value >> 1;
+              }
+            }
+            context_enlargeIn--;
+            if (context_enlargeIn == 0) {
+              context_enlargeIn = Math.pow(2, context_numBits);
+              context_numBits++;
+            }
+            context_dictionary[context_wc] = context_dictSize++;
+            context_w = String(context_c);
+          }
+        }
+
+        if (context_w !== "") {
+          if (Object.prototype.hasOwnProperty.call(context_dictionaryToCreate, context_w)) {
+            if (context_w.charCodeAt(0) < 256) {
+              for (i = 0; i < context_numBits; i++) {
+                context_data_val = (context_data_val << 1);
+                if (context_data_position == 5) {
+                  context_data_position = 0;
+                  context_data.push(LZ._k.charAt(context_data_val));
+                  context_data_val = 0;
+                } else {
+                  context_data_position++;
+                }
+              }
+              value = context_w.charCodeAt(0);
+              for (i = 0; i < 8; i++) {
+                context_data_val = (context_data_val << 1) | (value & 1);
+                if (context_data_position == 5) {
+                  context_data_position = 0;
+                  context_data.push(LZ._k.charAt(context_data_val));
+                  context_data_val = 0;
+                } else {
+                  context_data_position++;
+                }
+                value = value >> 1;
+              }
+            } else {
+              value = 1;
+              for (i = 0; i < context_numBits; i++) {
+                context_data_val = (context_data_val << 1) | value;
+                if (context_data_position == 5) {
+                  context_data_position = 0;
+                  context_data.push(LZ._k.charAt(context_data_val));
+                  context_data_val = 0;
+                } else {
+                  context_data_position++;
+                }
+                value = 0;
+              }
+              value = context_w.charCodeAt(0);
+              for (i = 0; i < 16; i++) {
+                context_data_val = (context_data_val << 1) | (value & 1);
+                if (context_data_position == 5) {
+                  context_data_position = 0;
+                  context_data.push(LZ._k.charAt(context_data_val));
+                  context_data_val = 0;
+                } else {
+                  context_data_position++;
+                }
+                value = value >> 1;
+              }
+            }
+            context_enlargeIn--;
+            if (context_enlargeIn == 0) {
+              context_enlargeIn = Math.pow(2, context_numBits);
+              context_numBits++;
+            }
+            delete context_dictionaryToCreate[context_w];
+          } else {
+            value = context_dictionary[context_w];
+            for (i = 0; i < context_numBits; i++) {
+              context_data_val = (context_data_val << 1) | (value & 1);
+              if (context_data_position == 5) {
+                context_data_position = 0;
+                context_data.push(LZ._k.charAt(context_data_val));
+                context_data_val = 0;
+              } else {
+                context_data_position++;
+              }
+              value = value >> 1;
+            }
+          }
+          context_enlargeIn--;
+          if (context_enlargeIn == 0) {
+            context_enlargeIn = Math.pow(2, context_numBits);
+            context_numBits++;
+          }
+        }
+
+        value = 2;
+        for (i = 0; i < context_numBits; i++) {
+          context_data_val = (context_data_val << 1) | (value & 1);
+          if (context_data_position == 5) {
+            context_data_position = 0;
+            context_data.push(LZ._k.charAt(context_data_val));
+            context_data_val = 0;
+          } else {
+            context_data_position++;
+          }
+          value = value >> 1;
+        }
+
+        while (true) {
+          context_data_val = (context_data_val << 1);
+          if (context_data_position == 5) {
+            context_data.push(LZ._k.charAt(context_data_val));
+            break;
+          } else context_data_position++;
+        }
+        return context_data.join('');
+      },
+      decompress: function(input) {
+        if (!input) return "";
+        let dictionary = [],
+            enlargeIn = 4,
+            dictSize = 4,
+            numBits = 3,
+            entry = "",
+            result = [],
+            w,
+            bits, resb, maxpower, power,
+            c,
+            data = { val: LZ._v(input.charAt(0)), position: 32, index: 1 };
+
+        for (let i = 0; i < 3; i += 1) {
+          dictionary[i] = i;
+        }
+
+        bits = 0;
+        maxpower = Math.pow(2, 2);
+        power = 1;
+        while (power != maxpower) {
+          resb = data.val & data.position;
+          data.position >>= 1;
+          if (data.position == 0) {
+            data.position = 32;
+            data.val = LZ._v(input.charAt(data.index++));
+          }
+          bits |= (resb > 0 ? 1 : 0) * power;
+          power <<= 1;
+        }
+
+        switch (bits) {
+          case 0:
+            bits = 0;
+            maxpower = Math.pow(2, 8);
+            power = 1;
+            while (power != maxpower) {
+              resb = data.val & data.position;
+              data.position >>= 1;
+              if (data.position == 0) {
+                data.position = 32;
+                data.val = LZ._v(input.charAt(data.index++));
+              }
+              bits |= (resb > 0 ? 1 : 0) * power;
+              power <<= 1;
+            }
+            c = String.fromCharCode(bits);
+            break;
+          case 1:
+            bits = 0;
+            maxpower = Math.pow(2, 16);
+            power = 1;
+            while (power != maxpower) {
+              resb = data.val & data.position;
+              data.position >>= 1;
+              if (data.position == 0) {
+                data.position = 32;
+                data.val = LZ._v(input.charAt(data.index++));
+              }
+              bits |= (resb > 0 ? 1 : 0) * power;
+              power <<= 1;
+            }
+            c = String.fromCharCode(bits);
+            break;
+          case 2:
+            return "";
+        }
+        dictionary[3] = c;
+        w = c;
+        result.push(c);
+        while (true) {
+          if (data.index > input.length) return "";
+
+          bits = 0;
+          maxpower = Math.pow(2, numBits);
+          power = 1;
+          while (power != maxpower) {
+            resb = data.val & data.position;
+            data.position >>= 1;
+            if (data.position == 0) {
+              data.position = 32;
+              data.val = LZ._v(input.charAt(data.index++));
+            }
+            bits |= (resb > 0 ? 1 : 0) * power;
+            power <<= 1;
+          }
+
+          switch (c = bits) {
+            case 0:
+              bits = 0;
+              maxpower = Math.pow(2, 8);
+              power = 1;
+              while (power != maxpower) {
+                resb = data.val & data.position;
+                data.position >>= 1;
+                if (data.position == 0) {
+                  data.position = 32;
+                  data.val = LZ._v(input.charAt(data.index++));
+                }
+                bits |= (resb > 0 ? 1 : 0) * power;
+                power <<= 1;
+              }
+              dictionary[dictSize++] = String.fromCharCode(bits);
+              c = dictSize - 1;
+              enlargeIn--;
+              break;
+            case 1:
+              bits = 0;
+              maxpower = Math.pow(2, 16);
+              power = 1;
+              while (power != maxpower) {
+                resb = data.val & data.position;
+                data.position >>= 1;
+                if (data.position == 0) {
+                  data.position = 32;
+                  data.val = LZ._v(input.charAt(data.index++));
+                }
+                bits |= (resb > 0 ? 1 : 0) * power;
+                power <<= 1;
+              }
+              dictionary[dictSize++] = String.fromCharCode(bits);
+              c = dictSize - 1;
+              enlargeIn--;
+              break;
+            case 2:
+              return result.join('');
+          }
+
+          if (enlargeIn == 0) {
+            enlargeIn = Math.pow(2, numBits);
+            numBits++;
+          }
+
+          if (dictionary[c]) {
+            entry = dictionary[c];
+          } else {
+            if (c === dictSize) {
+              entry = w + w.charAt(0);
+            } else {
+              return null;
+            }
+          }
+          result.push(entry);
+          dictionary[dictSize++] = w + entry.charAt(0);
+          enlargeIn--;
+          w = entry;
+
+          if (enlargeIn == 0) {
+            enlargeIn = Math.pow(2, numBits);
+            numBits++;
+          }
+        }
+      },
+      _v: function(char) {
+        return LZ._k.indexOf(char);
+      }
+    };
+  </script>
+
+  <script>
     const STORAGE_KEY = 'parent_studio_apps';
 
-    // Open or create an IndexedDB store to ensure persistence across standalone containers
     function openAppDatabase() {
       return new Promise((resolve, reject) => {
         const req = indexedDB.open('AppStudioDB', 1);
@@ -61,33 +433,50 @@
       }
     }
 
-    // Resolves app ID from both query (?app=) and hash (#app=), protecting against GitHub Pages redirects
-    function getTargetAppId() {
-      const urlParams = new URLSearchParams(window.location.search);
-      let id = urlParams.get('app');
-      if (!id && window.location.hash) {
-        const cleanHash = window.location.hash.replace(/^#/, '');
-        const hashParams = new URLSearchParams(cleanHash);
-        id = hashParams.get('app') || cleanHash;
-      }
-      return id;
+    async function persistAppGlobally(appData) {
+      if (!appData || !appData.id) return;
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        const apps = raw ? JSON.parse(raw) : {};
+        apps[appData.id] = appData;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(apps));
+      } catch (e) {}
+
+      try {
+        const db = await openAppDatabase();
+        const tx = db.transaction('apps', 'readwrite');
+        tx.objectStore('apps').put(appData);
+      } catch (e) {}
     }
 
     /*
-     * DYNAMIC GITHUB PAGES & PWA ROUTER:
-     * Executes synchronously where possible to ensure icons and titles register before mobile browsers snapshot the page.
+     * DUAL ROUTER:
+     * Resolves app either from embedded URL hash (#d=...) or query parameter (?app=...).
+     * This guarantees that when added to phone Home Screen, the app opens with 100% reliability.
      */
     (async function checkChildRoute() {
-      const activeAppId = getTargetAppId();
-      if (!activeAppId) return; // Stay in Parent Studio
+      const urlParams = new URLSearchParams(window.location.search);
+      let targetId = urlParams.get('app');
 
-      // Immediately hide parent studio layout to prevent flashing
+      // Extract hash parameters
+      let hashData = null;
+      let hashId = null;
+      if (window.location.hash) {
+        const cleanHash = window.location.hash.replace(/^#/, '');
+        const hashParams = new URLSearchParams(cleanHash);
+        hashData = hashParams.get('d');
+        hashId = hashParams.get('id') || hashParams.get('app');
+      }
+
+      if (!targetId && hashId) targetId = hashId;
+      if (!targetId && !hashData) return; // Stay in Parent Studio
+
+      // Hide parent layout instantly to avoid UI flickering
       const styleHide = document.createElement('style');
       styleHide.id = 'childAppPreloadStyle';
       styleHide.textContent = 'body > * { display: none !important; }';
       document.head.appendChild(styleHide);
 
-      // Helper function to mount child into DOM
       function renderWhenReady(callback) {
         if (document.readyState === 'interactive' || document.readyState === 'complete') {
           callback();
@@ -96,172 +485,170 @@
         }
       }
 
-      try {
-        // 1. Check synchronous localStorage first
-        let childApp = null;
+      let childApp = null;
+
+      // 1. First priority: Decompress embedded hash data (fixes isolated home screen containers)
+      if (hashData) {
+        try {
+          const decompressed = LZ.decompress(hashData);
+          if (decompressed) {
+            childApp = JSON.parse(decompressed);
+            // Cache immediately into this container's storage
+            persistAppGlobally(childApp);
+          }
+        } catch (err) {
+          console.warn("Hash decompression error:", err);
+        }
+      }
+
+      // 2. Second priority: Local Storage
+      if (!childApp && targetId) {
         try {
           const rawData = localStorage.getItem(STORAGE_KEY);
           const apps = rawData ? JSON.parse(rawData) : {};
-          childApp = apps[activeAppId];
-        } catch (e) {
-          console.warn("localStorage read warning:", e);
-        }
+          childApp = apps[targetId];
+        } catch (e) {}
+      }
 
-        // 2. Fallback to IndexedDB (shared reliably across mobile containers)
-        if (!childApp) {
-          childApp = await getChildAppFromDB(activeAppId);
-        }
+      // 3. Third priority: IndexedDB
+      if (!childApp && targetId) {
+        childApp = await getChildAppFromDB(targetId);
+      }
 
-        if (!childApp) {
-          renderWhenReady(() => {
-            if (styleHide.parentNode) styleHide.parentNode.removeChild(styleHide);
-            document.body.innerHTML = `
-              <div class="min-h-screen bg-slate-50 text-slate-800 flex flex-col items-center justify-center p-6 text-center font-sans">
-                <div class="bg-white border border-slate-200 p-8 rounded-2xl max-w-md shadow-sm">
-                  <div class="w-12 h-12 bg-red-50 text-red-500 rounded-xl flex items-center justify-center text-xl mx-auto mb-3">⚠️</div>
-                  <h1 class="text-lg font-bold text-slate-900 mb-1">App Not Found</h1>
-                  <p class="text-slate-500 text-sm mb-5">Could not find "<strong>${activeAppId}</strong>". If you opened this on your phone, make sure to create the app directly using this phone's browser.</p>
-                  <a href="${window.location.pathname}" class="inline-block px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors">Return to Studio</a>
-                </div>
-              </div>
-            `;
-          });
-          return;
-        }
-
-        // 1. Set Document Title
-        document.title = childApp.title || "My App";
-        const appBgColor = childApp.themeColor || '#0f172a';
-
-        // 2. Resolve Hosted Image Icon or SVG fallback
-        const fallbackSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="${appBgColor}"/><text y=".9em" x="50%" text-anchor="middle" font-size="70">⚡</text></svg>`;
-        const fallbackIcon = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(fallbackSvg)}`;
-        
-        let effectiveIcon = (childApp.iconUrl && childApp.iconUrl.trim()) ? childApp.iconUrl.trim() : fallbackIcon;
-        // Ensure https:// on hosted image to prevent mixed content blocking on GitHub Pages
-        if (effectiveIcon.startsWith('http://')) {
-          effectiveIcon = effectiveIcon.replace('http://', 'https://');
-        }
-
-        // Preload image to browser cache
-        const iconPreload = new Image();
-        iconPreload.crossOrigin = "anonymous";
-        iconPreload.src = effectiveIcon;
-
-        // 3. Inject Apple Touch Icons for iOS Safari Home Screen
-        document.querySelectorAll('link[rel*="apple-touch-icon"]').forEach(el => el.remove());
-        const appleIconSizes = ['', '180x180', '152x152', '167x167', '120x120'];
-        appleIconSizes.forEach(size => {
-          const link = document.createElement('link');
-          link.rel = 'apple-touch-icon';
-          if (size) link.setAttribute('sizes', size);
-          link.href = effectiveIcon;
-          document.head.appendChild(link);
-        });
-
-        // 4. Update Favicon
-        let dynamicFavicon = document.querySelector('link[rel="icon"]');
-        if (!dynamicFavicon) {
-          dynamicFavicon = document.createElement('link');
-          dynamicFavicon.rel = 'icon';
-          document.head.appendChild(dynamicFavicon);
-        }
-        dynamicFavicon.href = effectiveIcon;
-
-        // 5. Update Web App Manifest (Data URI for Android WebAPK)
-        const manifestObj = {
-          name: childApp.title,
-          short_name: (childApp.title || "App").substring(0, 12),
-          description: `Installed via App Studio`,
-          start_url: window.location.href,
-          display: "standalone",
-          orientation: "portrait-primary",
-          background_color: appBgColor,
-          theme_color: appBgColor,
-          icons: [
-            { src: effectiveIcon, sizes: "192x192", type: "image/png", purpose: "any" },
-            { src: effectiveIcon, sizes: "512x512", type: "image/png", purpose: "any" },
-            { src: effectiveIcon, sizes: "192x192", type: "image/png", purpose: "maskable" },
-            { src: effectiveIcon, sizes: "512x512", type: "image/png", purpose: "maskable" }
-          ]
-        };
-
-        const manifestDataUri = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifestObj));
-        let manifestLink = document.querySelector('link[rel="manifest"]');
-        if (!manifestLink) {
-          manifestLink = document.createElement('link');
-          manifestLink.rel = 'manifest';
-          document.head.appendChild(manifestLink);
-        }
-        manifestLink.href = manifestDataUri;
-
-        // 6. Meta mobile headers
-        const themeMeta = document.getElementById('dynamicThemeColor') || document.querySelector('meta[name="theme-color"]');
-        if (themeMeta) themeMeta.content = appBgColor;
-
-        let metaCapable = document.querySelector('meta[name="apple-mobile-web-app-capable"]');
-        if (!metaCapable) {
-          metaCapable = document.createElement('meta');
-          metaCapable.name = "apple-mobile-web-app-capable";
-          metaCapable.content = "yes";
-          document.head.appendChild(metaCapable);
-        }
-
-        let metaBar = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
-        if (!metaBar) {
-          metaBar = document.createElement('meta');
-          metaBar.name = "apple-mobile-web-app-status-bar-style";
-          metaBar.content = "black-translucent";
-          document.head.appendChild(metaBar);
-        }
-
-        let metaTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
-        if (!metaTitle) {
-          metaTitle = document.createElement('meta');
-          metaTitle.name = "apple-mobile-web-app-title";
-          document.head.appendChild(metaTitle);
-        }
-        metaTitle.content = childApp.title;
-
-        // 7. Mount the child app code inside full-bleed isolated iframe using Blob URL
+      // If app is not found
+      if (!childApp) {
         renderWhenReady(() => {
           if (styleHide.parentNode) styleHide.parentNode.removeChild(styleHide);
-
-          document.body.style.margin = "0";
-          document.body.style.padding = "0";
-          document.body.style.overflow = "hidden";
-          document.body.style.width = "100vw";
-          document.body.style.height = "100vh";
-          document.body.style.background = appBgColor;
-
-          const frame = document.createElement('iframe');
-          frame.style.width = "100vw";
-          frame.style.height = "100vh";
-          frame.style.border = "none";
-          frame.style.display = "block";
-          frame.style.background = appBgColor;
-          frame.setAttribute('allow', 'fullscreen; geolocation; microphone; camera; midi');
-
-          // Blob URL ensures zero character-escaping issues for complex code on GitHub Pages
-          try {
-            const blob = new Blob([childApp.code], { type: 'text/html;charset=utf-8' });
-            frame.src = URL.createObjectURL(blob);
-          } catch (e) {
-            frame.srcdoc = childApp.code;
-          }
-
-          document.body.innerHTML = '';
-          document.body.appendChild(frame);
+          document.body.innerHTML = `
+            <div class="min-h-screen bg-slate-50 text-slate-800 flex flex-col items-center justify-center p-6 text-center font-sans">
+              <div class="bg-white border border-slate-200 p-8 rounded-2xl max-w-md shadow-sm">
+                <div class="w-12 h-12 bg-amber-50 text-amber-500 rounded-xl flex items-center justify-center text-xl mx-auto mb-3">🔍</div>
+                <h1 class="text-lg font-bold text-slate-900 mb-1">App Not Found</h1>
+                <p class="text-slate-500 text-sm mb-5">Could not load this app. If you copied the link, make sure the complete URL was preserved.</p>
+                <a href="${window.location.pathname}" class="inline-block px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors">Return to Studio</a>
+              </div>
+            </div>
+          `;
         });
-
-      } catch (err) {
-        console.error("Router error:", err);
+        return;
       }
+
+      document.title = childApp.title || "My App";
+      const appBgColor = childApp.themeColor || '#0f172a';
+
+      // Resolve icon
+      const fallbackSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="${appBgColor}"/><text y=".9em" x="50%" text-anchor="middle" font-size="70">⚡</text></svg>`;
+      const fallbackIcon = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(fallbackSvg)}`;
+      let effectiveIcon = (childApp.iconUrl && childApp.iconUrl.trim()) ? childApp.iconUrl.trim() : fallbackIcon;
+      if (effectiveIcon.startsWith('http://')) {
+        effectiveIcon = effectiveIcon.replace('http://', 'https://');
+      }
+
+      // Apple Touch Icons for iOS Safari
+      document.querySelectorAll('link[rel*="apple-touch-icon"]').forEach(el => el.remove());
+      ['', '180x180', '152x152', '167x167', '120x120'].forEach(size => {
+        const link = document.createElement('link');
+        link.rel = 'apple-touch-icon';
+        if (size) link.setAttribute('sizes', size);
+        link.href = effectiveIcon;
+        document.head.appendChild(link);
+      });
+
+      // Favicon
+      let dynamicFavicon = document.querySelector('link[rel="icon"]');
+      if (!dynamicFavicon) {
+        dynamicFavicon = document.createElement('link');
+        dynamicFavicon.rel = 'icon';
+        document.head.appendChild(dynamicFavicon);
+      }
+      dynamicFavicon.href = effectiveIcon;
+
+      // Dynamic Web App Manifest
+      const manifestObj = {
+        name: childApp.title,
+        short_name: (childApp.title || "App").substring(0, 12),
+        start_url: window.location.href,
+        display: "standalone",
+        orientation: "portrait-primary",
+        background_color: appBgColor,
+        theme_color: appBgColor,
+        icons: [
+          { src: effectiveIcon, sizes: "192x192", type: "image/png", purpose: "any" },
+          { src: effectiveIcon, sizes: "512x512", type: "image/png", purpose: "any" },
+          { src: effectiveIcon, sizes: "192x192", type: "image/png", purpose: "maskable" },
+          { src: effectiveIcon, sizes: "512x512", type: "image/png", purpose: "maskable" }
+        ]
+      };
+
+      const manifestDataUri = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifestObj));
+      let manifestLink = document.querySelector('link[rel="manifest"]');
+      if (!manifestLink) {
+        manifestLink = document.createElement('link');
+        manifestLink.rel = 'manifest';
+        document.head.appendChild(manifestLink);
+      }
+      manifestLink.href = manifestDataUri;
+
+      // Meta tags for mobile status bar
+      const themeMeta = document.getElementById('dynamicThemeColor') || document.querySelector('meta[name="theme-color"]');
+      if (themeMeta) themeMeta.content = appBgColor;
+
+      let metaCapable = document.querySelector('meta[name="apple-mobile-web-app-capable"]');
+      if (!metaCapable) {
+        metaCapable = document.createElement('meta');
+        metaCapable.name = "apple-mobile-web-app-capable";
+        metaCapable.content = "yes";
+        document.head.appendChild(metaCapable);
+      }
+
+      let metaBar = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+      if (!metaBar) {
+        metaBar = document.createElement('meta');
+        metaBar.name = "apple-mobile-web-app-status-bar-style";
+        metaBar.content = "black-translucent";
+        document.head.appendChild(metaBar);
+      }
+
+      let metaTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+      if (!metaTitle) {
+        metaTitle = document.createElement('meta');
+        metaTitle.name = "apple-mobile-web-app-title";
+        document.head.appendChild(metaTitle);
+      }
+      metaTitle.content = childApp.title;
+
+      renderWhenReady(() => {
+        if (styleHide.parentNode) styleHide.parentNode.removeChild(styleHide);
+
+        document.body.style.margin = "0";
+        document.body.style.padding = "0";
+        document.body.style.overflow = "hidden";
+        document.body.style.width = "100vw";
+        document.body.style.height = "100vh";
+        document.body.style.background = appBgColor;
+
+        const frame = document.createElement('iframe');
+        frame.style.width = "100vw";
+        frame.style.height = "100vh";
+        frame.style.border = "none";
+        frame.style.display = "block";
+        frame.style.background = appBgColor;
+        frame.setAttribute('allow', 'fullscreen; geolocation; microphone; camera; midi');
+
+        try {
+          const blob = new Blob([childApp.code], { type: 'text/html;charset=utf-8' });
+          frame.src = URL.createObjectURL(blob);
+        } catch (e) {
+          frame.srcdoc = childApp.code;
+        }
+
+        document.body.innerHTML = '';
+        document.body.appendChild(frame);
+      });
     })();
   </script>
 
   <style>
-    /* Clean custom scrollbar for light theme */
     ::-webkit-scrollbar {
       width: 6px;
       height: 6px;
@@ -290,7 +677,7 @@
         <div>
           <h1 class="text-sm sm:text-base font-semibold text-slate-900 flex items-center gap-2">
             App Studio
-            <span class="text-[11px] font-mono font-medium bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded-md">PWA Host</span>
+            <span class="text-[11px] font-mono font-medium bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded-md">PWA Generator</span>
           </h1>
         </div>
       </div>
@@ -301,6 +688,7 @@
     </div>
   </header>
 
+  <!-- Main Creator Section -->
   <main class="max-w-3xl w-full mx-auto p-4 sm:p-6 flex-1 flex flex-col justify-start">
     <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
       
@@ -339,8 +727,9 @@
 
       <!-- Action Button -->
       <div class="flex items-center justify-end pt-1">
-        <button id="btnCreateApp" class="w-full sm:w-auto px-6 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-medium text-sm shadow-sm transition-all">
-          Create
+        <button id="btnCreateApp" class="w-full sm:w-auto px-6 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-medium text-sm shadow-sm transition-all flex items-center justify-center gap-2">
+          <span>Create App</span>
+          <span>⚡</span>
         </button>
       </div>
     </div>
@@ -353,7 +742,7 @@
         <span id="modalIconFallback" class="text-2xl">⚡</span>
       </div>
       <h3 id="modalAppTitle" class="text-lg font-bold text-slate-900 mb-1">App Ready</h3>
-      <p class="text-xs text-slate-500 mb-5">Your standalone app link has been created.</p>
+      <p class="text-xs text-slate-500 mb-5">Your standalone app link has been created and encoded.</p>
       
       <div class="flex flex-col w-full gap-2">
         <a id="btnModalOpen" target="_blank" href="#" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm transition-all shadow-sm flex items-center justify-center gap-2">
@@ -361,6 +750,10 @@
         </a>
         <button id="btnModalOpenSameTab" class="w-full py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs transition-all">
           Launch in Current Tab
+        </button>
+        <button id="btnModalCopyLink" class="w-full py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium text-xs transition-all flex items-center justify-center gap-1.5">
+          <span>📋</span>
+          <span>Copy App Link</span>
         </button>
         <button id="btnModalClose" class="w-full py-2 rounded-xl text-slate-500 hover:text-slate-700 text-xs transition-all">
           Close
@@ -394,10 +787,12 @@
     const modalIconFallback = document.getElementById('modalIconFallback');
     const btnModalOpen = document.getElementById('btnModalOpen');
     const btnModalOpenSameTab = document.getElementById('btnModalOpenSameTab');
+    const btnModalCopyLink = document.getElementById('btnModalCopyLink');
     const btnModalClose = document.getElementById('btnModalClose');
 
     let currentGeneratedUrl = '';
 
+    // Color synchronization
     inputColorPicker.addEventListener('input', () => {
       inputThemeColor.value = inputColorPicker.value;
     });
@@ -432,7 +827,7 @@
       }
     });
 
-    // Toast Messenger
+    // Toast notification helper
     function showToast(message, icon = '✨') {
       const toast = document.getElementById('toast');
       const toastMsg = document.getElementById('toastMsg');
@@ -460,7 +855,6 @@
       inputTitle.focus();
     });
 
-    // Close Modal
     btnModalClose.addEventListener('click', () => {
       modalOverlay.classList.add('hidden');
     });
@@ -477,22 +871,21 @@
       }
     });
 
-    async function saveAppToDatabase(appData) {
+    btnModalCopyLink.addEventListener('click', () => {
+      if (!currentGeneratedUrl) return;
+      const dummy = document.createElement('textarea');
+      dummy.value = currentGeneratedUrl;
+      document.body.appendChild(dummy);
+      dummy.select();
       try {
-        const db = await openAppDatabase();
-        return new Promise((resolve, reject) => {
-          const tx = db.transaction('apps', 'readwrite');
-          const store = tx.objectStore('apps');
-          store.put(appData);
-          tx.oncomplete = () => resolve();
-          tx.onerror = () => reject(tx.error);
-        });
+        document.execCommand('copy');
+        showToast('Link copied to clipboard!', '📋');
       } catch (err) {
-        console.warn("IndexedDB save failed, falling back to localStorage only:", err);
+        showToast('Failed to copy', '⚠️');
       }
-    }
+      document.body.removeChild(dummy);
+    });
 
-    // Resolves accurate base path without triggering GitHub Pages 301 query stripping
     function getNormalizedBasePath() {
       let path = window.location.pathname;
       if (!path.endsWith('/') && !path.split('/').pop().includes('.')) {
@@ -523,28 +916,22 @@
         iconUrl = iconUrl.replace('http://', 'https://');
       }
 
-      // Automatically generate clean slug ID
+      // Generate clean slug ID
       const id = title.toLowerCase().replace(/[^a-z0-9_-]/g, '-').replace(/-+/g, '-') || 'app-' + Date.now();
       const appData = { id, title, iconUrl, themeColor, code, updatedAt: Date.now() };
 
-      // 1. Save synchronously to localStorage
-      try {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        const apps = stored ? JSON.parse(stored) : {};
-        apps[id] = appData;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(apps));
-      } catch (e) {
-        console.error("Storage error:", e);
-      }
+      // 1. Save locally to both localStorage and IndexedDB
+      await persistAppGlobally(appData);
 
-      // 2. Save asynchronously to IndexedDB (shared reliably on same domain)
-      await saveAppToDatabase(appData);
+      // 2. Compress payload into safe hash string
+      const jsonString = JSON.stringify(appData);
+      const compressedData = LZ.compress(jsonString);
 
-      // 3. Construct URL protected against GitHub Pages redirect stripping
+      // 3. Construct URL: Short query (?app=) keeps GitHub Pages happy, while hash (#d=) carries the full code
       const base = getNormalizedBasePath();
-      currentGeneratedUrl = `${base}?app=${encodeURIComponent(id)}#app=${encodeURIComponent(id)}`;
+      currentGeneratedUrl = `${base}?app=${encodeURIComponent(id)}#d=${compressedData}`;
 
-      // Update Center Popup
+      // Update and display launch modal
       modalAppTitle.innerText = title;
       btnModalOpen.href = currentGeneratedUrl;
 
@@ -557,7 +944,6 @@
         modalIconFallback.classList.remove('hidden');
       }
 
-      // Open Center Popup
       modalOverlay.classList.remove('hidden');
     });
   </script>
