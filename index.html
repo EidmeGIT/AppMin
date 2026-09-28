@@ -179,31 +179,6 @@
         const faviconLink = document.getElementById('favicon-link');
         if (faviconLink) faviconLink.href = effectiveIcon;
 
-        const manifestObj = {
-          name: app.name,
-          short_name: app.name.substring(0, 12),
-          start_url: window.location.href,
-          display: "standalone",
-          orientation: "portrait-primary",
-          background_color: app.color,
-          theme_color: app.color,
-          icons: [
-            { src: effectiveIcon, sizes: "192x192", type: "image/png", purpose: "any" },
-            { src: effectiveIcon, sizes: "512x512", type: "image/png", purpose: "any" },
-            { src: effectiveIcon, sizes: "192x192", type: "image/png", purpose: "maskable" },
-            { src: effectiveIcon, sizes: "512x512", type: "image/png", purpose: "maskable" }
-          ]
-        };
-
-        const manifestDataUri = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifestObj));
-        let manifestEl = document.querySelector('link[rel="manifest"]');
-        if (!manifestEl) {
-          manifestEl = document.createElement('link');
-          manifestEl.rel = 'manifest';
-          document.head.appendChild(manifestEl);
-        }
-        manifestEl.href = manifestDataUri;
-
         // Render child app into isolated viewport
         mountWhenReady(() => {
           const parentUi = document.getElementById('parent-studio-ui');
