@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>App Studio & PWA Launcher</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>App Studio</title>
 
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -13,7 +13,12 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
-  <meta name="theme-color" id="dynamicThemeColor" content="#0f172a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta id="theme-color-meta" name="theme-color" content="#ffffff">
+  <link id="apple-touch-icon-link" rel="apple-touch-icon" href="">
+  <link id="favicon-link" rel="icon" href="">
 
   <script>
     tailwind.config = {
@@ -25,459 +30,111 @@
           }
         }
       }
-    }
-  </script>
-
-  <script>
-    /*
-     * Compact, URL-Safe LZ Compressor & Decompressor
-     * Enables complete offline self-hydration across isolated Home Screen containers
-     * without triggering GitHub Pages 414 Request URI limits.
-     */
-    const LZ = {
-      _k: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$",
-      compress: function(uncompressed) {
-        if (!uncompressed) return "";
-        let i, value,
-            context_dictionary = {},
-            context_dictionaryToCreate = {},
-            context_c = "",
-            context_wc = "",
-            context_w = "",
-            context_enlargeIn = 2,
-            context_dictSize = 3,
-            context_numBits = 2,
-            context_data = [],
-            context_data_val = 0,
-            context_data_position = 0,
-            ii;
-
-        for (ii = 0; ii < uncompressed.length; ii += 1) {
-          context_c = uncompressed.charAt(ii);
-          if (!Object.prototype.hasOwnProperty.call(context_dictionary, context_c)) {
-            context_dictionary[context_c] = context_dictSize++;
-            context_dictionaryToCreate[context_c] = true;
-          }
-          context_wc = context_w + context_c;
-          if (Object.prototype.hasOwnProperty.call(context_dictionary, context_wc)) {
-            context_w = context_wc;
-          } else {
-            if (Object.prototype.hasOwnProperty.call(context_dictionaryToCreate, context_w)) {
-              if (context_w.charCodeAt(0) < 256) {
-                for (i = 0; i < context_numBits; i++) {
-                  context_data_val = (context_data_val << 1);
-                  if (context_data_position == 5) {
-                    context_data_position = 0;
-                    context_data.push(LZ._k.charAt(context_data_val));
-                    context_data_val = 0;
-                  } else {
-                    context_data_position++;
-                  }
-                }
-                value = context_w.charCodeAt(0);
-                for (i = 0; i < 8; i++) {
-                  context_data_val = (context_data_val << 1) | (value & 1);
-                  if (context_data_position == 5) {
-                    context_data_position = 0;
-                    context_data.push(LZ._k.charAt(context_data_val));
-                    context_data_val = 0;
-                  } else {
-                    context_data_position++;
-                  }
-                  value = value >> 1;
-                }
-              } else {
-                value = 1;
-                for (i = 0; i < context_numBits; i++) {
-                  context_data_val = (context_data_val << 1) | value;
-                  if (context_data_position == 5) {
-                    context_data_position = 0;
-                    context_data.push(LZ._k.charAt(context_data_val));
-                    context_data_val = 0;
-                  } else {
-                    context_data_position++;
-                  }
-                  value = 0;
-                }
-                value = context_w.charCodeAt(0);
-                for (i = 0; i < 16; i++) {
-                  context_data_val = (context_data_val << 1) | (value & 1);
-                  if (context_data_position == 5) {
-                    context_data_position = 0;
-                    context_data.push(LZ._k.charAt(context_data_val));
-                    context_data_val = 0;
-                  } else {
-                    context_data_position++;
-                  }
-                  value = value >> 1;
-                }
-              }
-              context_enlargeIn--;
-              if (context_enlargeIn == 0) {
-                context_enlargeIn = Math.pow(2, context_numBits);
-                context_numBits++;
-              }
-              delete context_dictionaryToCreate[context_w];
-            } else {
-              value = context_dictionary[context_w];
-              for (i = 0; i < context_numBits; i++) {
-                context_data_val = (context_data_val << 1) | (value & 1);
-                if (context_data_position == 5) {
-                  context_data_position = 0;
-                  context_data.push(LZ._k.charAt(context_data_val));
-                  context_data_val = 0;
-                } else {
-                  context_data_position++;
-                }
-                value = value >> 1;
-              }
-            }
-            context_enlargeIn--;
-            if (context_enlargeIn == 0) {
-              context_enlargeIn = Math.pow(2, context_numBits);
-              context_numBits++;
-            }
-            context_dictionary[context_wc] = context_dictSize++;
-            context_w = String(context_c);
-          }
-        }
-
-        if (context_w !== "") {
-          if (Object.prototype.hasOwnProperty.call(context_dictionaryToCreate, context_w)) {
-            if (context_w.charCodeAt(0) < 256) {
-              for (i = 0; i < context_numBits; i++) {
-                context_data_val = (context_data_val << 1);
-                if (context_data_position == 5) {
-                  context_data_position = 0;
-                  context_data.push(LZ._k.charAt(context_data_val));
-                  context_data_val = 0;
-                } else {
-                  context_data_position++;
-                }
-              }
-              value = context_w.charCodeAt(0);
-              for (i = 0; i < 8; i++) {
-                context_data_val = (context_data_val << 1) | (value & 1);
-                if (context_data_position == 5) {
-                  context_data_position = 0;
-                  context_data.push(LZ._k.charAt(context_data_val));
-                  context_data_val = 0;
-                } else {
-                  context_data_position++;
-                }
-                value = value >> 1;
-              }
-            } else {
-              value = 1;
-              for (i = 0; i < context_numBits; i++) {
-                context_data_val = (context_data_val << 1) | value;
-                if (context_data_position == 5) {
-                  context_data_position = 0;
-                  context_data.push(LZ._k.charAt(context_data_val));
-                  context_data_val = 0;
-                } else {
-                  context_data_position++;
-                }
-                value = 0;
-              }
-              value = context_w.charCodeAt(0);
-              for (i = 0; i < 16; i++) {
-                context_data_val = (context_data_val << 1) | (value & 1);
-                if (context_data_position == 5) {
-                  context_data_position = 0;
-                  context_data.push(LZ._k.charAt(context_data_val));
-                  context_data_val = 0;
-                } else {
-                  context_data_position++;
-                }
-                value = value >> 1;
-              }
-            }
-            context_enlargeIn--;
-            if (context_enlargeIn == 0) {
-              context_enlargeIn = Math.pow(2, context_numBits);
-              context_numBits++;
-            }
-            delete context_dictionaryToCreate[context_w];
-          } else {
-            value = context_dictionary[context_w];
-            for (i = 0; i < context_numBits; i++) {
-              context_data_val = (context_data_val << 1) | (value & 1);
-              if (context_data_position == 5) {
-                context_data_position = 0;
-                context_data.push(LZ._k.charAt(context_data_val));
-                context_data_val = 0;
-              } else {
-                context_data_position++;
-              }
-              value = value >> 1;
-            }
-          }
-          context_enlargeIn--;
-          if (context_enlargeIn == 0) {
-            context_enlargeIn = Math.pow(2, context_numBits);
-            context_numBits++;
-          }
-        }
-
-        value = 2;
-        for (i = 0; i < context_numBits; i++) {
-          context_data_val = (context_data_val << 1) | (value & 1);
-          if (context_data_position == 5) {
-            context_data_position = 0;
-            context_data.push(LZ._k.charAt(context_data_val));
-            context_data_val = 0;
-          } else {
-            context_data_position++;
-          }
-          value = value >> 1;
-        }
-
-        while (true) {
-          context_data_val = (context_data_val << 1);
-          if (context_data_position == 5) {
-            context_data.push(LZ._k.charAt(context_data_val));
-            break;
-          } else context_data_position++;
-        }
-        return context_data.join('');
-      },
-      decompress: function(input) {
-        if (!input) return "";
-        let dictionary = [],
-            enlargeIn = 4,
-            dictSize = 4,
-            numBits = 3,
-            entry = "",
-            result = [],
-            w,
-            bits, resb, maxpower, power,
-            c,
-            data = { val: LZ._v(input.charAt(0)), position: 32, index: 1 };
-
-        for (let i = 0; i < 3; i += 1) {
-          dictionary[i] = i;
-        }
-
-        bits = 0;
-        maxpower = Math.pow(2, 2);
-        power = 1;
-        while (power != maxpower) {
-          resb = data.val & data.position;
-          data.position >>= 1;
-          if (data.position == 0) {
-            data.position = 32;
-            data.val = LZ._v(input.charAt(data.index++));
-          }
-          bits |= (resb > 0 ? 1 : 0) * power;
-          power <<= 1;
-        }
-
-        switch (bits) {
-          case 0:
-            bits = 0;
-            maxpower = Math.pow(2, 8);
-            power = 1;
-            while (power != maxpower) {
-              resb = data.val & data.position;
-              data.position >>= 1;
-              if (data.position == 0) {
-                data.position = 32;
-                data.val = LZ._v(input.charAt(data.index++));
-              }
-              bits |= (resb > 0 ? 1 : 0) * power;
-              power <<= 1;
-            }
-            c = String.fromCharCode(bits);
-            break;
-          case 1:
-            bits = 0;
-            maxpower = Math.pow(2, 16);
-            power = 1;
-            while (power != maxpower) {
-              resb = data.val & data.position;
-              data.position >>= 1;
-              if (data.position == 0) {
-                data.position = 32;
-                data.val = LZ._v(input.charAt(data.index++));
-              }
-              bits |= (resb > 0 ? 1 : 0) * power;
-              power <<= 1;
-            }
-            c = String.fromCharCode(bits);
-            break;
-          case 2:
-            return "";
-        }
-        dictionary[3] = c;
-        w = c;
-        result.push(c);
-        while (true) {
-          if (data.index > input.length) return "";
-
-          bits = 0;
-          maxpower = Math.pow(2, numBits);
-          power = 1;
-          while (power != maxpower) {
-            resb = data.val & data.position;
-            data.position >>= 1;
-            if (data.position == 0) {
-              data.position = 32;
-              data.val = LZ._v(input.charAt(data.index++));
-            }
-            bits |= (resb > 0 ? 1 : 0) * power;
-            power <<= 1;
-          }
-
-          switch (c = bits) {
-            case 0:
-              bits = 0;
-              maxpower = Math.pow(2, 8);
-              power = 1;
-              while (power != maxpower) {
-                resb = data.val & data.position;
-                data.position >>= 1;
-                if (data.position == 0) {
-                  data.position = 32;
-                  data.val = LZ._v(input.charAt(data.index++));
-                }
-                bits |= (resb > 0 ? 1 : 0) * power;
-                power <<= 1;
-              }
-              dictionary[dictSize++] = String.fromCharCode(bits);
-              c = dictSize - 1;
-              enlargeIn--;
-              break;
-            case 1:
-              bits = 0;
-              maxpower = Math.pow(2, 16);
-              power = 1;
-              while (power != maxpower) {
-                resb = data.val & data.position;
-                data.position >>= 1;
-                if (data.position == 0) {
-                  data.position = 32;
-                  data.val = LZ._v(input.charAt(data.index++));
-                }
-                bits |= (resb > 0 ? 1 : 0) * power;
-                power <<= 1;
-              }
-              dictionary[dictSize++] = String.fromCharCode(bits);
-              c = dictSize - 1;
-              enlargeIn--;
-              break;
-            case 2:
-              return result.join('');
-          }
-
-          if (enlargeIn == 0) {
-            enlargeIn = Math.pow(2, numBits);
-            numBits++;
-          }
-
-          if (dictionary[c]) {
-            entry = dictionary[c];
-          } else {
-            if (c === dictSize) {
-              entry = w + w.charAt(0);
-            } else {
-              return null;
-            }
-          }
-          result.push(entry);
-          dictionary[dictSize++] = w + entry.charAt(0);
-          enlargeIn--;
-          w = entry;
-
-          if (enlargeIn == 0) {
-            enlargeIn = Math.pow(2, numBits);
-            numBits++;
-          }
-        }
-      },
-      _v: function(char) {
-        return LZ._k.indexOf(char);
-      }
     };
   </script>
 
-  <script>
-    const STORAGE_KEY = 'parent_studio_apps';
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+    }
+    #child-frame {
+      display: none;
+      width: 100vw;
+      height: 100vh;
+      border: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 99999;
+    }
+  </style>
 
-    function openAppDatabase() {
-      return new Promise((resolve, reject) => {
-        const req = indexedDB.open('AppStudioDB', 1);
-        req.onupgradeneeded = (e) => {
-          const db = e.target.result;
-          if (!db.objectStoreNames.contains('apps')) {
-            db.createObjectStore('apps', { keyPath: 'id' });
-          }
-        };
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
+  <script>
+    // Turso Cloud Database Configuration
+    const TURSO_ENDPOINT = "https://websitexd-eidmeturso.aws-ap-south-1.turso.io/v2/pipeline";
+    const TURSO_TOKEN = "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3OTA1ODA2MzgsImlkIjoiMDFhMGU2ZWMtMmMwMS03ZDAyLThkMjItZjllMzk2MWJhZjczIiwia2lkIjoicm9ENkhSd1RGUUJnSS1iVG83SjlGaUV4SzlnaWtkVDBzX1pLSzRlVEdhQSIsInJpZCI6IjFiN2E2ZTAzLTM1NGUtNDZmNy1iMzI5LTQyMmY4M2JjMjU1MCJ9.vCPP5iXuYoUwsEGj8wmYiQA9MRFR0f3suvuAP6mycibbEgypXXI1BbLTbXxPjNeaY-8kp8jVHhqpq6SoqRilDQ";
+
+    // Helper to query Turso HTTP Pipeline
+    async function queryTurso(sql, args = []) {
+      const formattedArgs = args.map(val => {
+        if (val === null || val === undefined) return { type: "null" };
+        if (typeof val === "number") return { type: "integer", value: val };
+        return { type: "text", value: String(val) };
       });
+
+      const response = await fetch(TURSO_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${TURSO_TOKEN}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          requests: [
+            {
+              type: "execute",
+              stmt: {
+                sql: sql,
+                args: formattedArgs
+              }
+            },
+            { type: "close" }
+          ]
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Turso connection failed: ${response.status} ${errorText}`);
+      }
+
+      const data = await response.json();
+      const firstResult = data.results && data.results[0];
+      if (firstResult && firstResult.type === "error") {
+        throw new Error(firstResult.error ? firstResult.error.message : "Database error");
+      }
+      return firstResult && firstResult.response ? firstResult.response.result : null;
     }
 
-    async function getChildAppFromDB(id) {
+    // Auto-create apps table in Turso on launch
+    async function ensureTableExists() {
       try {
-        const db = await openAppDatabase();
-        return new Promise((resolve) => {
-          const tx = db.transaction('apps', 'readonly');
-          const store = tx.objectStore('apps');
-          const req = store.get(id);
-          req.onsuccess = () => resolve(req.result || null);
-          req.onerror = () => resolve(null);
-        });
-      } catch (e) {
-        return null;
+        await queryTurso(`
+          CREATE TABLE IF NOT EXISTS apps (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            icon TEXT,
+            color TEXT,
+            code TEXT NOT NULL,
+            created_at INTEGER
+          );
+        `);
+      } catch (err) {
+        console.warn("Could not verify Turso table:", err);
       }
     }
+    ensureTableExists();
 
-    async function persistAppGlobally(appData) {
-      if (!appData || !appData.id) return;
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        const apps = raw ? JSON.parse(raw) : {};
-        apps[appData.id] = appData;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(apps));
-      } catch (e) {}
-
-      try {
-        const db = await openAppDatabase();
-        const tx = db.transaction('apps', 'readwrite');
-        tx.objectStore('apps').put(appData);
-      } catch (e) {}
-    }
-
-    /*
-     * DUAL ROUTER:
-     * Resolves app either from embedded URL hash (#d=...) or query parameter (?app=...).
-     * This guarantees that when added to phone Home Screen, the app opens with 100% reliability.
-     */
     (async function checkChildRoute() {
       const urlParams = new URLSearchParams(window.location.search);
       let targetId = urlParams.get('app');
 
-      // Extract hash parameters
-      let hashData = null;
-      let hashId = null;
-      if (window.location.hash) {
-        const cleanHash = window.location.hash.replace(/^#/, '');
-        const hashParams = new URLSearchParams(cleanHash);
-        hashData = hashParams.get('d');
-        hashId = hashParams.get('id') || hashParams.get('app');
+      if (!targetId && window.location.hash) {
+        const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+        targetId = hashParams.get('app') || hashParams.get('id');
       }
 
-      if (!targetId && hashId) targetId = hashId;
-      if (!targetId && !hashData) return; // Stay in Parent Studio
+      if (!targetId) return; // Stay in parent studio mode
 
-      // Hide parent layout instantly to avoid UI flickering
-      const styleHide = document.createElement('style');
-      styleHide.id = 'childAppPreloadStyle';
-      styleHide.textContent = 'body > * { display: none !important; }';
-      document.head.appendChild(styleHide);
+      // Fast layout hiding while retrieving app code
+      const preHideStyle = document.createElement('style');
+      preHideStyle.id = 'preHideStyle';
+      preHideStyle.textContent = '#parent-studio-ui { display: none !important; }';
+      document.head.appendChild(preHideStyle);
 
-      function renderWhenReady(callback) {
+      function mountWhenReady(callback) {
         if (document.readyState === 'interactive' || document.readyState === 'complete') {
           callback();
         } else {
@@ -485,272 +142,195 @@
         }
       }
 
-      let childApp = null;
-
-      // 1. First priority: Decompress embedded hash data (fixes isolated home screen containers)
-      if (hashData) {
-        try {
-          const decompressed = LZ.decompress(hashData);
-          if (decompressed) {
-            childApp = JSON.parse(decompressed);
-            // Cache immediately into this container's storage
-            persistAppGlobally(childApp);
-          }
-        } catch (err) {
-          console.warn("Hash decompression error:", err);
+      try {
+        // Fetch app from Turso DB
+        const result = await queryTurso("SELECT name, icon, color, code FROM apps WHERE id = ? LIMIT 1;", [targetId]);
+        
+        if (!result || !result.rows || result.rows.length === 0) {
+          throw new Error("App not found in cloud database.");
         }
-      }
 
-      // 2. Second priority: Local Storage
-      if (!childApp && targetId) {
-        try {
-          const rawData = localStorage.getItem(STORAGE_KEY);
-          const apps = rawData ? JSON.parse(rawData) : {};
-          childApp = apps[targetId];
-        } catch (e) {}
-      }
+        const row = result.rows[0];
+        const app = {
+          name: row[0]?.value || "My App",
+          icon: row[1]?.value || "",
+          color: row[2]?.value || "#0f172a",
+          code: row[3]?.value || ""
+        };
 
-      // 3. Third priority: IndexedDB
-      if (!childApp && targetId) {
-        childApp = await getChildAppFromDB(targetId);
-      }
+        // Update Document Title
+        document.title = app.name;
 
-      // If app is not found
-      if (!childApp) {
-        renderWhenReady(() => {
-          if (styleHide.parentNode) styleHide.parentNode.removeChild(styleHide);
+        // Apply Splash / BG Theme Color
+        const themeMeta = document.getElementById('theme-color-meta');
+        if (themeMeta) themeMeta.setAttribute('content', app.color);
+        document.documentElement.style.backgroundColor = app.color;
+        document.body.style.backgroundColor = app.color;
+
+        // Apply Apple Touch Icon & Favicon
+        const fallbackSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="${app.color}"/><text y=".9em" x="50%" text-anchor="middle" font-size="70">⚡</text></svg>`;
+        const fallbackIcon = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(fallbackSvg)}`;
+        let effectiveIcon = (app.icon && app.icon.trim()) ? app.icon.trim() : fallbackIcon;
+
+        const appleIconLink = document.getElementById('apple-touch-icon-link');
+        if (appleIconLink) appleIconLink.href = effectiveIcon;
+
+        const faviconLink = document.getElementById('favicon-link');
+        if (faviconLink) faviconLink.href = effectiveIcon;
+
+        const manifestObj = {
+          name: app.name,
+          short_name: app.name.substring(0, 12),
+          start_url: window.location.href,
+          display: "standalone",
+          orientation: "portrait-primary",
+          background_color: app.color,
+          theme_color: app.color,
+          icons: [
+            { src: effectiveIcon, sizes: "192x192", type: "image/png", purpose: "any" },
+            { src: effectiveIcon, sizes: "512x512", type: "image/png", purpose: "any" },
+            { src: effectiveIcon, sizes: "192x192", type: "image/png", purpose: "maskable" },
+            { src: effectiveIcon, sizes: "512x512", type: "image/png", purpose: "maskable" }
+          ]
+        };
+
+        const manifestDataUri = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifestObj));
+        let manifestEl = document.querySelector('link[rel="manifest"]');
+        if (!manifestEl) {
+          manifestEl = document.createElement('link');
+          manifestEl.rel = 'manifest';
+          document.head.appendChild(manifestEl);
+        }
+        manifestEl.href = manifestDataUri;
+
+        // Render child app into isolated viewport
+        mountWhenReady(() => {
+          const parentUi = document.getElementById('parent-studio-ui');
+          if (parentUi) parentUi.remove();
+
+          const frame = document.getElementById('child-frame');
+          frame.style.display = 'block';
+          frame.style.backgroundColor = app.color;
+          frame.setAttribute('allow', 'fullscreen; geolocation; microphone; camera; midi');
+
+          try {
+            const blob = new Blob([app.code], { type: 'text/html;charset=utf-8' });
+            frame.src = URL.createObjectURL(blob);
+          } catch (e) {
+            frame.srcdoc = app.code;
+          }
+        });
+
+      } catch (err) {
+        console.error("Child app loading error:", err);
+        mountWhenReady(() => {
+          if (preHideStyle.parentNode) preHideStyle.parentNode.removeChild(preHideStyle);
           document.body.innerHTML = `
             <div class="min-h-screen bg-slate-50 text-slate-800 flex flex-col items-center justify-center p-6 text-center font-sans">
-              <div class="bg-white border border-slate-200 p-8 rounded-2xl max-w-md shadow-sm">
+              <div class="bg-white border border-slate-200 p-8 rounded-2xl max-w-sm w-full shadow-sm">
                 <div class="w-12 h-12 bg-amber-50 text-amber-500 rounded-xl flex items-center justify-center text-xl mx-auto mb-3">🔍</div>
-                <h1 class="text-lg font-bold text-slate-900 mb-1">App Not Found</h1>
-                <p class="text-slate-500 text-sm mb-5">Could not load this app. If you copied the link, make sure the complete URL was preserved.</p>
-                <a href="${window.location.pathname}" class="inline-block px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors">Return to Studio</a>
+                <h1 class="text-base font-bold text-slate-900 mb-1">App Not Found</h1>
+                <p class="text-slate-500 text-xs mb-5">Could not retrieve this app from Turso cloud storage. Check your link or return to the studio.</p>
+                <a href="${window.location.origin + window.location.pathname}" class="inline-block w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold transition-colors">Return to Studio</a>
               </div>
             </div>
           `;
         });
-        return;
       }
-
-      document.title = childApp.title || "My App";
-      const appBgColor = childApp.themeColor || '#0f172a';
-
-      // Resolve icon
-      const fallbackSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="${appBgColor}"/><text y=".9em" x="50%" text-anchor="middle" font-size="70">⚡</text></svg>`;
-      const fallbackIcon = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(fallbackSvg)}`;
-      let effectiveIcon = (childApp.iconUrl && childApp.iconUrl.trim()) ? childApp.iconUrl.trim() : fallbackIcon;
-      if (effectiveIcon.startsWith('http://')) {
-        effectiveIcon = effectiveIcon.replace('http://', 'https://');
-      }
-
-      // Apple Touch Icons for iOS Safari
-      document.querySelectorAll('link[rel*="apple-touch-icon"]').forEach(el => el.remove());
-      ['', '180x180', '152x152', '167x167', '120x120'].forEach(size => {
-        const link = document.createElement('link');
-        link.rel = 'apple-touch-icon';
-        if (size) link.setAttribute('sizes', size);
-        link.href = effectiveIcon;
-        document.head.appendChild(link);
-      });
-
-      // Favicon
-      let dynamicFavicon = document.querySelector('link[rel="icon"]');
-      if (!dynamicFavicon) {
-        dynamicFavicon = document.createElement('link');
-        dynamicFavicon.rel = 'icon';
-        document.head.appendChild(dynamicFavicon);
-      }
-      dynamicFavicon.href = effectiveIcon;
-
-      // Dynamic Web App Manifest
-      const manifestObj = {
-        name: childApp.title,
-        short_name: (childApp.title || "App").substring(0, 12),
-        start_url: window.location.href,
-        display: "standalone",
-        orientation: "portrait-primary",
-        background_color: appBgColor,
-        theme_color: appBgColor,
-        icons: [
-          { src: effectiveIcon, sizes: "192x192", type: "image/png", purpose: "any" },
-          { src: effectiveIcon, sizes: "512x512", type: "image/png", purpose: "any" },
-          { src: effectiveIcon, sizes: "192x192", type: "image/png", purpose: "maskable" },
-          { src: effectiveIcon, sizes: "512x512", type: "image/png", purpose: "maskable" }
-        ]
-      };
-
-      const manifestDataUri = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifestObj));
-      let manifestLink = document.querySelector('link[rel="manifest"]');
-      if (!manifestLink) {
-        manifestLink = document.createElement('link');
-        manifestLink.rel = 'manifest';
-        document.head.appendChild(manifestLink);
-      }
-      manifestLink.href = manifestDataUri;
-
-      // Meta tags for mobile status bar
-      const themeMeta = document.getElementById('dynamicThemeColor') || document.querySelector('meta[name="theme-color"]');
-      if (themeMeta) themeMeta.content = appBgColor;
-
-      let metaCapable = document.querySelector('meta[name="apple-mobile-web-app-capable"]');
-      if (!metaCapable) {
-        metaCapable = document.createElement('meta');
-        metaCapable.name = "apple-mobile-web-app-capable";
-        metaCapable.content = "yes";
-        document.head.appendChild(metaCapable);
-      }
-
-      let metaBar = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
-      if (!metaBar) {
-        metaBar = document.createElement('meta');
-        metaBar.name = "apple-mobile-web-app-status-bar-style";
-        metaBar.content = "black-translucent";
-        document.head.appendChild(metaBar);
-      }
-
-      let metaTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
-      if (!metaTitle) {
-        metaTitle = document.createElement('meta');
-        metaTitle.name = "apple-mobile-web-app-title";
-        document.head.appendChild(metaTitle);
-      }
-      metaTitle.content = childApp.title;
-
-      renderWhenReady(() => {
-        if (styleHide.parentNode) styleHide.parentNode.removeChild(styleHide);
-
-        document.body.style.margin = "0";
-        document.body.style.padding = "0";
-        document.body.style.overflow = "hidden";
-        document.body.style.width = "100vw";
-        document.body.style.height = "100vh";
-        document.body.style.background = appBgColor;
-
-        const frame = document.createElement('iframe');
-        frame.style.width = "100vw";
-        frame.style.height = "100vh";
-        frame.style.border = "none";
-        frame.style.display = "block";
-        frame.style.background = appBgColor;
-        frame.setAttribute('allow', 'fullscreen; geolocation; microphone; camera; midi');
-
-        try {
-          const blob = new Blob([childApp.code], { type: 'text/html;charset=utf-8' });
-          frame.src = URL.createObjectURL(blob);
-        } catch (e) {
-          frame.srcdoc = childApp.code;
-        }
-
-        document.body.innerHTML = '';
-        document.body.appendChild(frame);
-      });
     })();
   </script>
-
-  <style>
-    ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-    ::-webkit-scrollbar-track {
-      background: #f1f5f9;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: #cbd5e1;
-      border-radius: 4px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: #94a3b8;
-    }
-  </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen font-sans selection:bg-indigo-100 selection:text-indigo-900 flex flex-col">
 
-  <!-- Header -->
-  <header class="border-b border-slate-200 bg-white sticky top-0 z-30">
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center font-bold text-white text-base shadow-sm">
-          ⚡
+  <!-- Child App Standalone Fullscreen Viewport -->
+  <iframe id="child-frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"></iframe>
+
+  <!-- Main Parent Studio UI -->
+  <div id="parent-studio-ui" class="flex-1 flex flex-col">
+    <!-- Header -->
+    <header class="border-b border-slate-200 bg-white sticky top-0 z-30">
+      <div class="max-w-3xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white text-sm shadow-sm">
+            ⚡
+          </div>
+          <div>
+            <h1 class="text-sm font-semibold text-slate-900 flex items-center gap-2">
+              App Studio
+              <span class="text-[10px] font-mono font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded">Turso Cloud Active</span>
+            </h1>
+          </div>
         </div>
-        <div>
-          <h1 class="text-sm sm:text-base font-semibold text-slate-900 flex items-center gap-2">
-            App Studio
-            <span class="text-[11px] font-mono font-medium bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded-md">PWA Generator</span>
-          </h1>
-        </div>
+
+        <button id="btnClear" type="button" class="px-3 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs transition-all">
+          Clear
+        </button>
       </div>
+    </header>
 
-      <button id="btnClearForm" class="px-3.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs sm:text-sm transition-all">
-        Clear
-      </button>
-    </div>
-  </header>
+    <!-- Main Creator Form -->
+    <main class="max-w-3xl w-full mx-auto p-4 sm:p-6 flex-1 flex flex-col justify-start">
+      <div class="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm">
+        
+        <!-- App Details Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1">App Name</label>
+            <input type="text" id="inputTitle" placeholder="e.g. Speed Converter" class="w-full bg-white border border-slate-300 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 rounded-xl px-3 py-2 text-sm text-slate-900 placeholder-slate-400 outline-none transition-all">
+          </div>
 
-  <!-- Main Creator Section -->
-  <main class="max-w-3xl w-full mx-auto p-4 sm:p-6 flex-1 flex flex-col justify-start">
-    <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-      
-      <!-- Inputs: App Name, Hosted Image URL & Splash Color -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-        <div>
-          <label class="block text-xs font-medium text-slate-700 mb-1">App Name</label>
-          <input type="text" id="inputTitle" placeholder="Enter app name" class="w-full bg-white border border-slate-300 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 rounded-lg px-3 py-2 text-sm text-slate-900 placeholder-slate-400 outline-none transition-all">
-        </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1">Hosted Image URL</label>
+            <div class="flex items-center gap-2">
+              <input type="url" id="inputIconUrl" placeholder="https://example.com/icon.png" class="flex-1 bg-white border border-slate-300 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 rounded-xl px-3 py-2 text-sm text-slate-900 placeholder-slate-400 outline-none transition-all">
+              <div id="iconPreviewBox" class="w-9 h-9 rounded-lg border border-slate-200 bg-slate-100 flex items-center justify-center overflow-hidden shrink-0">
+                <span id="iconPreviewPlaceholder" class="text-xs text-slate-400">🖼️</span>
+                <img id="iconPreviewImg" src="" alt="Icon" class="w-full h-full object-cover hidden">
+              </div>
+            </div>
+          </div>
 
-        <div>
-          <label class="block text-xs font-medium text-slate-700 mb-1">Hosted Image URL</label>
-          <div class="flex items-center gap-2">
-            <input type="url" id="inputIconUrl" placeholder="https://example.com/icon.png" class="flex-1 bg-white border border-slate-300 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 rounded-lg px-3 py-2 text-sm text-slate-900 placeholder-slate-400 outline-none transition-all">
-            <div id="iconPreviewBox" class="w-9 h-9 rounded-lg border border-slate-200 bg-slate-100 flex items-center justify-center overflow-hidden shrink-0">
-              <span id="iconPreviewPlaceholder" class="text-xs text-slate-400">🖼️</span>
-              <img id="iconPreviewImg" src="" alt="Icon" class="w-full h-full object-cover hidden">
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1">Splash / BG Color</label>
+            <div class="flex items-center gap-2">
+              <input type="color" id="inputColorPicker" value="#0f172a" class="w-9 h-9 p-0.5 rounded-lg border border-slate-300 bg-white cursor-pointer shrink-0">
+              <input type="text" id="inputThemeColor" value="#0f172a" placeholder="#0f172a" class="w-full bg-white border border-slate-300 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 rounded-xl px-3 py-2 text-sm text-slate-900 font-mono outline-none transition-all">
             </div>
           </div>
         </div>
 
-        <div>
-          <label class="block text-xs font-medium text-slate-700 mb-1">Splash / BG Color</label>
-          <div class="flex items-center gap-2">
-            <input type="color" id="inputColorPicker" value="#0f172a" class="w-9 h-9 p-0.5 rounded-lg border border-slate-300 bg-white cursor-pointer shrink-0">
-            <input type="text" id="inputThemeColor" value="#0f172a" placeholder="#0f172a" class="w-full bg-white border border-slate-300 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 rounded-lg px-3 py-2 text-sm text-slate-900 font-mono outline-none transition-all">
-          </div>
+        <!-- HTML Code Editor Textarea -->
+        <div class="mb-5">
+          <label for="inputCode" class="block text-xs font-medium text-slate-700 mb-1">HTML / CSS / JS Code</label>
+          <textarea id="inputCode" rows="15" placeholder="Paste full HTML code here..." class="w-full bg-slate-900 text-slate-100 border border-slate-800 rounded-xl p-3.5 text-xs sm:text-sm font-mono placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none resize-y leading-relaxed transition-all"></textarea>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="flex items-center justify-end">
+          <button id="btnCreateApp" class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-semibold text-sm shadow-sm transition-all flex items-center justify-center gap-2">
+            <span id="btnCreateText">Create App</span>
+            <span id="btnCreateSpinner" class="hidden animate-spin">⏳</span>
+          </button>
         </div>
       </div>
-
-      <!-- HTML Code Area -->
-      <div class="mb-5">
-        <label for="inputCode" class="block text-xs font-medium text-slate-700 mb-1">HTML / CSS / JS Code</label>
-        <textarea id="inputCode" rows="15" placeholder="Paste full HTML code here..." class="w-full bg-slate-900 text-slate-100 border border-slate-800 rounded-lg p-3 text-xs sm:text-sm font-mono placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none resize-y leading-relaxed transition-all"></textarea>
-      </div>
-
-      <!-- Action Button -->
-      <div class="flex items-center justify-end pt-1">
-        <button id="btnCreateApp" class="w-full sm:w-auto px-6 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-medium text-sm shadow-sm transition-all flex items-center justify-center gap-2">
-          <span>Create App</span>
-          <span>⚡</span>
-        </button>
-      </div>
-    </div>
-  </main>
+    </main>
+  </div>
 
   <div id="modalOverlay" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white border border-slate-200 rounded-2xl p-6 max-w-sm w-full shadow-xl text-center flex flex-col items-center animate-in fade-in zoom-in-95 duration-150">
-      <div id="modalIconContainer" class="w-16 h-16 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center overflow-hidden mb-4 shadow-sm">
+      <div id="modalIconContainer" class="w-16 h-16 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center overflow-hidden mb-3 shadow-sm">
         <img id="modalIconImg" src="" alt="App Icon" class="w-full h-full object-cover hidden">
         <span id="modalIconFallback" class="text-2xl">⚡</span>
       </div>
-      <h3 id="modalAppTitle" class="text-lg font-bold text-slate-900 mb-1">App Ready</h3>
-      <p class="text-xs text-slate-500 mb-5">Your standalone app link has been created and encoded.</p>
+      
+      <h3 id="modalAppTitle" class="text-base font-bold text-slate-900 mb-1">App Ready</h3>
+      <p class="text-xs text-slate-500 mb-5">Saved to Turso Cloud. Clean URL is ready to launch or add to your home screen.</p>
       
       <div class="flex flex-col w-full gap-2">
-        <a id="btnModalOpen" target="_blank" href="#" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm transition-all shadow-sm flex items-center justify-center gap-2">
-          Open the App
+        <a id="btnModalOpen" target="_blank" href="#" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs sm:text-sm transition-all shadow-sm flex items-center justify-center gap-1.5">
+          <span>Open the App</span>
+          <span>↗</span>
         </a>
-        <button id="btnModalOpenSameTab" class="w-full py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs transition-all">
-          Launch in Current Tab
-        </button>
         <button id="btnModalCopyLink" class="w-full py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium text-xs transition-all flex items-center justify-center gap-1.5">
           <span>📋</span>
           <span>Copy App Link</span>
@@ -763,9 +343,9 @@
   </div>
 
   <!-- Notification Toast -->
-  <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none bg-slate-900 text-white text-xs sm:text-sm px-4 py-2.5 rounded-lg shadow-lg flex items-center gap-2">
+  <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none bg-slate-900 text-white text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-2">
     <span id="toastIcon">✨</span>
-    <span id="toastMsg">Operation successful</span>
+    <span id="toastMsg">Notification message</span>
   </div>
 
   <script>
@@ -778,7 +358,9 @@
     const inputThemeColor = document.getElementById('inputThemeColor');
     const inputCode = document.getElementById('inputCode');
     const btnCreateApp = document.getElementById('btnCreateApp');
-    const btnClearForm = document.getElementById('btnClearForm');
+    const btnCreateText = document.getElementById('btnCreateText');
+    const btnCreateSpinner = document.getElementById('btnCreateSpinner');
+    const btnClear = document.getElementById('btnClear');
 
     // Modal Elements
     const modalOverlay = document.getElementById('modalOverlay');
@@ -786,13 +368,12 @@
     const modalIconImg = document.getElementById('modalIconImg');
     const modalIconFallback = document.getElementById('modalIconFallback');
     const btnModalOpen = document.getElementById('btnModalOpen');
-    const btnModalOpenSameTab = document.getElementById('btnModalOpenSameTab');
     const btnModalCopyLink = document.getElementById('btnModalCopyLink');
     const btnModalClose = document.getElementById('btnModalClose');
 
     let currentGeneratedUrl = '';
 
-    // Color synchronization
+    // Color Pickers Synchronization
     inputColorPicker.addEventListener('input', () => {
       inputThemeColor.value = inputColorPicker.value;
     });
@@ -804,7 +385,7 @@
       }
     });
 
-    // Live update icon preview
+    // Live Thumbnail Preview for Hosted Image URL
     inputIconUrl.addEventListener('input', () => {
       let url = inputIconUrl.value.trim();
       if (url.startsWith('http://')) {
@@ -827,7 +408,7 @@
       }
     });
 
-    // Toast notification helper
+    // Custom Toast Notification
     function showToast(message, icon = '✨') {
       const toast = document.getElementById('toast');
       const toastMsg = document.getElementById('toastMsg');
@@ -840,10 +421,11 @@
       setTimeout(() => {
         toast.classList.remove('translate-y-0', 'opacity-100');
         toast.classList.add('translate-y-20', 'opacity-0');
-      }, 2400);
+      }, 2500);
     }
 
-    btnClearForm.addEventListener('click', () => {
+    // Clear form
+    btnClear.addEventListener('click', () => {
       inputTitle.value = '';
       inputIconUrl.value = '';
       iconPreviewImg.src = '';
@@ -855,20 +437,13 @@
       inputTitle.focus();
     });
 
+    // Modal Events
     btnModalClose.addEventListener('click', () => {
       modalOverlay.classList.add('hidden');
     });
 
     modalOverlay.addEventListener('click', (e) => {
-      if (e.target === modalOverlay) {
-        modalOverlay.classList.add('hidden');
-      }
-    });
-
-    btnModalOpenSameTab.addEventListener('click', () => {
-      if (currentGeneratedUrl) {
-        window.location.href = currentGeneratedUrl;
-      }
+      if (e.target === modalOverlay) modalOverlay.classList.add('hidden');
     });
 
     btnModalCopyLink.addEventListener('click', () => {
@@ -916,35 +491,53 @@
         iconUrl = iconUrl.replace('http://', 'https://');
       }
 
-      // Generate clean slug ID
-      const id = title.toLowerCase().replace(/[^a-z0-9_-]/g, '-').replace(/-+/g, '-') || 'app-' + Date.now();
-      const appData = { id, title, iconUrl, themeColor, code, updatedAt: Date.now() };
+      // Generate a clean slug ID
+      const baseSlug = title.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'app';
+      const randomSuffix = Math.random().toString(36).substring(2, 6);
+      const appId = `${baseSlug}-${randomSuffix}`;
 
-      // 1. Save locally to both localStorage and IndexedDB
-      await persistAppGlobally(appData);
+      // Show loading state
+      btnCreateApp.disabled = true;
+      btnCreateText.textContent = "Saving to Turso...";
+      btnCreateSpinner.classList.remove('hidden');
 
-      // 2. Compress payload into safe hash string
-      const jsonString = JSON.stringify(appData);
-      const compressedData = LZ.compress(jsonString);
+      try {
+        // Ensure table exists & Insert app data directly into Turso
+        await ensureTableExists();
+        await queryTurso(
+          `INSERT OR REPLACE INTO apps (id, name, icon, color, code, created_at) VALUES (?, ?, ?, ?, ?, ?);`,
+          [appId, title, iconUrl, themeColor, code, Date.now()]
+        );
 
-      // 3. Construct URL: Short query (?app=) keeps GitHub Pages happy, while hash (#d=) carries the full code
-      const base = getNormalizedBasePath();
-      currentGeneratedUrl = `${base}?app=${encodeURIComponent(id)}#d=${compressedData}`;
+        // Construct short, clean URL (safe for iOS, Android, and GitHub Pages)
+        const base = getNormalizedBasePath();
+        currentGeneratedUrl = `${base}?app=${encodeURIComponent(appId)}`;
 
-      // Update and display launch modal
-      modalAppTitle.innerText = title;
-      btnModalOpen.href = currentGeneratedUrl;
+        // Configure Modal
+        modalAppTitle.innerText = title;
+        btnModalOpen.href = currentGeneratedUrl;
 
-      if (iconUrl) {
-        modalIconImg.src = iconUrl;
-        modalIconImg.classList.remove('hidden');
-        modalIconFallback.classList.add('hidden');
-      } else {
-        modalIconImg.classList.add('hidden');
-        modalIconFallback.classList.remove('hidden');
+        if (iconUrl) {
+          modalIconImg.src = iconUrl;
+          modalIconImg.classList.remove('hidden');
+          modalIconFallback.classList.add('hidden');
+        } else {
+          modalIconImg.classList.add('hidden');
+          modalIconFallback.classList.remove('hidden');
+        }
+
+        // Open ready popup
+        modalOverlay.classList.remove('hidden');
+        showToast('Saved to Turso Database!', '🚀');
+
+      } catch (err) {
+        console.error("Save error:", err);
+        showToast(`Failed: ${err.message}`, '⚠️');
+      } finally {
+        btnCreateApp.disabled = false;
+        btnCreateText.textContent = "Create App";
+        btnCreateSpinner.classList.add('hidden');
       }
-
-      modalOverlay.classList.remove('hidden');
     });
   </script>
 </body>
