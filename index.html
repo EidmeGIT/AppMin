@@ -39,13 +39,32 @@
     }
     #child-frame {
       display: none;
-      width: 100vw;
-      height: 100vh;
+      width: 100%;
+      height: 100%;
       border: none;
       position: fixed;
       top: 0;
       left: 0;
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+      padding-left: env(safe-area-inset-left, 0px);
+      padding-right: env(safe-area-inset-right, 0px);
+      box-sizing: border-box;
+      z-index: 10;
+    }
+    #launch-splash {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
       z-index: 99999;
+      transition: opacity 0.3s ease-out;
+    }
+    #launch-splash.fade-out {
+      opacity: 0;
+      pointer-events: none;
     }
   </style>
 
@@ -160,10 +179,11 @@
         document.title = app.name;
 
         // Make ONLY child apps run in fullscreen standalone mode (no browser tabs/bars)
+        // Using 'default' status bar style so iOS renders battery/clock clearly without overlap
         const standaloneMetas = [
           { name: 'apple-mobile-web-app-capable', content: 'yes' },
           { name: 'mobile-web-app-capable', content: 'yes' },
-          { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
+          { name: 'apple-mobile-web-app-status-bar-style', content: 'default' },
           { name: 'apple-mobile-web-app-title', content: app.name }
         ];
 
@@ -229,22 +249,57 @@
         }
         manifestLink.href = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(childManifest));
 
-        // Render child app into isolated viewport
+        // Render child app into isolated viewport with smooth transition and safe-area padding
         mountWhenReady(() => {
           const parentUi = document.getElementById('parent-studio-ui');
           if (parentUi) parentUi.remove();
+
+          // Create temporary smooth splash matching app color
+          const splash = document.createElement('div');
+          splash.id = 'launch-splash';
+          splash.style.backgroundColor = app.color;
+          splash.innerHTML = `
+            <div style="display:flex;flex-direction:column;align-items:center;gap:16px;">
+              <img src="${effectiveIcon}" style="width:72px;height:72px;border-radius:18px;box-shadow:0 10px 25px rgba(0,0,0,0.2);object-fit:cover;" onerror="this.style.display='none'">
+              <div style="width:24px;height:24px;border:2px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+            </div>
+            <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+          `;
+          document.body.appendChild(splash);
 
           const frame = document.getElementById('child-frame');
           frame.style.display = 'block';
           frame.style.backgroundColor = app.color;
           frame.setAttribute('allow', 'fullscreen; geolocation; microphone; camera; midi');
 
-          try {
-            const blob = new Blob([app.code], { type: 'text/html;charset=utf-8' });
-            frame.src = URL.createObjectURL(blob);
-          } catch (e) {
-            frame.srcdoc = app.code;
+          frame.onload = () => {
+            splash.classList.add('fade-out');
+            setTimeout(() => splash.remove(), 320);
+          };
+
+          // Inject safe-area style wrapper directly into child frame head
+          const safeWrapper = `
+            <style>
+              :root {
+                --sat: env(safe-area-inset-top, 0px);
+                --sab: env(safe-area-inset-bottom, 0px);
+              }
+              body {
+                padding-top: var(--sat) !important;
+                padding-bottom: var(--sab) !important;
+                box-sizing: border-box !important;
+              }
+            </style>
+          `;
+          
+          let patchedCode = app.code;
+          if (patchedCode.includes('<head>')) {
+            patchedCode = patchedCode.replace('<head>', '<head>' + safeWrapper);
+          } else {
+            patchedCode = safeWrapper + patchedCode;
           }
+
+          frame.srcdoc = patchedCode;
         });
 
       } catch (err) {
