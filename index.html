@@ -61,7 +61,8 @@
     async function queryTurso(sql, args = []) {
       const formattedArgs = args.map(val => {
         if (val === null || val === undefined) return { type: "null" };
-        if (typeof val === "number") return { type: "integer", value: val };
+        // Turso's Hrana v2 protocol requires 64-bit integers to be encoded as string values
+        if (typeof val === "number") return { type: "integer", value: String(Math.floor(val)) };
         return { type: "text", value: String(val) };
       });
 
