@@ -8,10 +8,10 @@
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Google Font: Inter & JetBrains Mono -->
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
   <meta id="theme-color-meta" name="theme-color" content="#ffffff">
   <link id="apple-touch-icon-link" rel="apple-touch-icon" href="">
@@ -22,8 +22,23 @@
       theme: {
         extend: {
           fontFamily: {
-            sans: ['Inter', 'sans-serif'],
-            mono: ['JetBrains Mono', 'monospace'],
+            sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              900: '#1e1b4b',
+            }
+          },
+          boxShadow: {
+            'subtle': '0 2px 10px rgba(0, 0, 0, 0.03), 0 1px 3px rgba(0, 0, 0, 0.02)',
+            'float': '0 12px 36px -4px rgba(15, 23, 42, 0.08), 0 4px 12px -2px rgba(15, 23, 42, 0.04)',
+            'nav': '0 -8px 24px -2px rgba(15, 23, 42, 0.05)',
           }
         }
       }
@@ -31,27 +46,34 @@
   </script>
 
   <style>
-    body, html {
+    html, body {
       margin: 0;
       padding: 0;
       width: 100%;
       height: 100%;
+      min-height: 100dvh;
+      background-color: #f8fafc;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
     }
+
+    /* Child app container - Full phone ratio edge-to-edge preserving top safe area */
     #child-frame {
       display: none;
-      width: 100%;
-      height: 100%;
+      width: 100vw;
+      height: 100dvh;
       border: none;
       position: fixed;
-      top: 0;
-      left: 0;
+      inset: 0;
       padding-top: env(safe-area-inset-top, 0px);
-      padding-bottom: env(safe-area-inset-bottom, 0px);
-      padding-left: env(safe-area-inset-left, 0px);
-      padding-right: env(safe-area-inset-right, 0px);
+      padding-bottom: 0px;
+      padding-left: 0px;
+      padding-right: 0px;
       box-sizing: border-box;
-      z-index: 10;
+      z-index: 9999;
+      background: #000;
     }
+
     #launch-splash {
       position: fixed;
       inset: 0;
@@ -60,24 +82,36 @@
       align-items: center;
       justify-content: center;
       z-index: 99999;
-      transition: opacity 0.3s ease-out;
+      transition: opacity 0.25s ease-out;
     }
     #launch-splash.fade-out {
       opacity: 0;
       pointer-events: none;
     }
+
+    .app-scroll::-webkit-scrollbar {
+      display: none;
+    }
+    .app-scroll {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    .pb-safe-nav {
+      padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 12px));
+    }
+    .pt-safe-top {
+      padding-top: env(safe-area-inset-top, 0px);
+    }
   </style>
 
   <script>
-    // Turso Cloud Database Configuration
     const TURSO_ENDPOINT = "https://websitexd-eidmeturso.aws-ap-south-1.turso.io/v2/pipeline";
     const TURSO_TOKEN = "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3OTA1ODA2MzgsImlkIjoiMDFhMGU2ZWMtMmMwMS03ZDAyLThkMjItZjllMzk2MWJhZjczIiwia2lkIjoicm9ENkhSd1RGUUJnSS1iVG83SjlGaUV4SzlnaWtkVDBzX1pLSzRlVEdhQSIsInJpZCI6IjFiN2E2ZTAzLTM1NGUtNDZmNy1iMzI5LTQyMmY4M2JjMjU1MCJ9.vCPP5iXuYoUwsEGj8wmYiQA9MRFR0f3suvuAP6mycibbEgypXXI1BbLTbXxPjNeaY-8kp8jVHhqpq6SoqRilDQ";
 
-    // Helper to query Turso HTTP Pipeline
     async function queryTurso(sql, args = []) {
       const formattedArgs = args.map(val => {
         if (val === null || val === undefined) return { type: "null" };
-        // Turso's Hrana v2 protocol requires 64-bit integers to be encoded as string values
         if (typeof val === "number") return { type: "integer", value: String(Math.floor(val)) };
         return { type: "text", value: String(val) };
       });
@@ -115,7 +149,6 @@
       return firstResult && firstResult.response ? firstResult.response.result : null;
     }
 
-    // Auto-create apps table in Turso on launch
     async function ensureTableExists() {
       try {
         await queryTurso(`
@@ -125,9 +158,16 @@
             icon TEXT,
             color TEXT,
             code TEXT NOT NULL,
-            created_at INTEGER
+            created_at INTEGER,
+            is_temp INTEGER DEFAULT 0
           );
         `);
+        // Ensure is_temp column exists if table was created earlier without it
+        try {
+          await queryTurso(`ALTER TABLE apps ADD COLUMN is_temp INTEGER DEFAULT 0;`);
+        } catch (e) {
+          // Column already exists, safe to ignore
+        }
       } catch (err) {
         console.warn("Could not verify Turso table:", err);
       }
@@ -136,16 +176,15 @@
 
     (async function checkChildRoute() {
       const urlParams = new URLSearchParams(window.location.search);
-      let targetId = urlParams.get('app');
+      let targetId = urlParams.get('app') || urlParams.get('temp');
 
       if (!targetId && window.location.hash) {
         const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
-        targetId = hashParams.get('app') || hashParams.get('id');
+        targetId = hashParams.get('app') || hashParams.get('temp') || hashParams.get('id');
       }
 
-      if (!targetId) return; // Stay in parent studio mode (opens as standard browser tab)
+      if (!targetId) return;
 
-      // Fast layout hiding while retrieving app code
       const preHideStyle = document.createElement('style');
       preHideStyle.id = 'preHideStyle';
       preHideStyle.textContent = '#parent-studio-ui { display: none !important; }';
@@ -160,9 +199,8 @@
       }
 
       try {
-        // Fetch app from Turso DB
-        const result = await queryTurso("SELECT name, icon, color, code FROM apps WHERE id = ? LIMIT 1;", [targetId]);
-        
+        // Retrieve app directly from Turso database (both saved and temp apps)
+        const result = await queryTurso("SELECT name, icon, color, code, is_temp FROM apps WHERE id = ? LIMIT 1;", [targetId]);
         if (!result || !result.rows || result.rows.length === 0) {
           throw new Error("App not found in cloud database.");
         }
@@ -172,14 +210,12 @@
           name: row[0]?.value || "My App",
           icon: row[1]?.value || "",
           color: row[2]?.value || "#0f172a",
-          code: row[3]?.value || ""
+          code: row[3]?.value || "",
+          isTemp: row[4]?.value === "1" || row[4]?.value === 1
         };
 
-        // Set document and iOS home screen title
         document.title = app.name;
 
-        // Make ONLY child apps run in fullscreen standalone mode (no browser tabs/bars)
-        // Using 'default' status bar style so iOS renders battery/clock clearly without overlap
         const standaloneMetas = [
           { name: 'apple-mobile-web-app-capable', content: 'yes' },
           { name: 'mobile-web-app-capable', content: 'yes' },
@@ -197,71 +233,33 @@
           el.content = meta.content;
         });
 
-        // Apply Splash / BG Theme Color
         const themeMeta = document.getElementById('theme-color-meta');
         if (themeMeta) themeMeta.setAttribute('content', app.color);
         document.documentElement.style.backgroundColor = app.color;
         document.body.style.backgroundColor = app.color;
 
-        // Fallback SVG icon if none provided
-        const fallbackSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="${app.color}"/><text y=".9em" x="50%" text-anchor="middle" font-size="70">⚡</text></svg>`;
+        const fallbackSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="24" fill="${app.color}"/><text y=".9em" x="50%" text-anchor="middle" font-size="70">${app.isTemp ? '⚡' : '🚀'}</text></svg>`;
         const fallbackIcon = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(fallbackSvg)}`;
         let effectiveIcon = (app.icon && app.icon.trim()) ? app.icon.trim() : fallbackIcon;
 
-        // Apply Apple Touch Icon & Precomposed Icon for iOS Home Screen
         const appleIconLink = document.getElementById('apple-touch-icon-link');
         if (appleIconLink) appleIconLink.href = effectiveIcon;
-
-        let precomposed = document.getElementById('apple-touch-icon-precomposed');
-        if (!precomposed) {
-          precomposed = document.createElement('link');
-          precomposed.id = 'apple-touch-icon-precomposed';
-          precomposed.rel = 'apple-touch-icon-precomposed';
-          document.head.appendChild(precomposed);
-        }
-        precomposed.href = effectiveIcon;
 
         const faviconLink = document.getElementById('favicon-link');
         if (faviconLink) faviconLink.href = effectiveIcon;
 
-        // Standalone manifest tells Android Chrome to run as a full app without browser tabs
-        const childManifest = {
-          name: app.name,
-          short_name: app.name,
-          start_url: window.location.href,
-          scope: window.location.href,
-          display: "standalone",
-          orientation: "any",
-          background_color: app.color,
-          theme_color: app.color,
-          icons: [
-            { src: effectiveIcon, sizes: "192x192", type: "image/png", purpose: "any maskable" },
-            { src: effectiveIcon, sizes: "512x512", type: "image/png", purpose: "any maskable" }
-          ]
-        };
-
-        let manifestLink = document.getElementById('child-manifest-link');
-        if (!manifestLink) {
-          manifestLink = document.createElement('link');
-          manifestLink.id = 'child-manifest-link';
-          manifestLink.rel = 'manifest';
-          document.head.appendChild(manifestLink);
-        }
-        manifestLink.href = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(childManifest));
-
-        // Render child app into isolated viewport with smooth transition and safe-area padding
         mountWhenReady(() => {
           const parentUi = document.getElementById('parent-studio-ui');
           if (parentUi) parentUi.remove();
 
-          // Create temporary smooth splash matching app color
           const splash = document.createElement('div');
           splash.id = 'launch-splash';
           splash.style.backgroundColor = app.color;
           splash.innerHTML = `
-            <div style="display:flex;flex-direction:column;align-items:center;gap:16px;">
-              <img src="${effectiveIcon}" style="width:72px;height:72px;border-radius:18px;box-shadow:0 10px 25px rgba(0,0,0,0.2);object-fit:cover;" onerror="this.style.display='none'">
-              <div style="width:24px;height:24px;border:2px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:14px;">
+              <img src="${effectiveIcon}" style="width:72px;height:72px;border-radius:20px;box-shadow:0 14px 30px rgba(0,0,0,0.22);object-fit:cover;" onerror="this.style.display='none'">
+              <div style="color:white;font-weight:700;font-size:16px;font-family:-apple-system, sans-serif;">${app.name}</div>
+              <div style="width:20px;height:20px;border:2.5px solid rgba(255,255,255,0.25);border-top-color:#ffffff;border-radius:50%;animation:spin 0.75s linear infinite;"></div>
             </div>
             <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
           `;
@@ -274,19 +272,18 @@
 
           frame.onload = () => {
             splash.classList.add('fade-out');
-            setTimeout(() => splash.remove(), 320);
+            setTimeout(() => splash.remove(), 260);
           };
 
-          // Inject safe-area style wrapper directly into child frame head
           const safeWrapper = `
             <style>
-              :root {
-                --sat: env(safe-area-inset-top, 0px);
-                --sab: env(safe-area-inset-bottom, 0px);
-              }
-              body {
-                padding-top: var(--sat) !important;
-                padding-bottom: var(--sab) !important;
+              html, body {
+                width: 100% !important;
+                height: 100% !important;
+                min-height: 100% !important;
+                margin: 0 !important;
+                padding-top: env(safe-area-inset-top, 0px) !important;
+                padding-bottom: 0px !important;
                 box-sizing: border-box !important;
               }
             </style>
@@ -303,16 +300,16 @@
         });
 
       } catch (err) {
-        console.error("Child app loading error:", err);
+        console.error("Child loading error:", err);
         mountWhenReady(() => {
           if (preHideStyle.parentNode) preHideStyle.parentNode.removeChild(preHideStyle);
           document.body.innerHTML = `
             <div class="min-h-screen bg-slate-50 text-slate-800 flex flex-col items-center justify-center p-6 text-center font-sans">
-              <div class="bg-white border border-slate-200 p-8 rounded-2xl max-w-sm w-full shadow-sm">
-                <div class="w-12 h-12 bg-amber-50 text-amber-500 rounded-xl flex items-center justify-center text-xl mx-auto mb-3">🔍</div>
-                <h1 class="text-base font-bold text-slate-900 mb-1">App Not Found</h1>
-                <p class="text-slate-500 text-xs mb-5">Could not retrieve this app from Turso cloud storage. Check your link or return to the studio.</p>
-                <a href="${window.location.origin + window.location.pathname}" class="inline-block w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold transition-colors">Return to Studio</a>
+              <div class="bg-white border border-slate-200 p-7 rounded-3xl max-w-xs w-full shadow-subtle">
+                <div class="w-12 h-12 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center text-xl mx-auto mb-3 font-bold">!</div>
+                <h1 class="text-sm font-bold text-slate-900 mb-1">Could Not Open Site</h1>
+                <p class="text-slate-500 text-xs mb-5">${err.message}</p>
+                <a href="${window.location.origin + window.location.pathname}" class="inline-block w-full py-3 bg-slate-900 text-white rounded-2xl text-xs font-semibold shadow-subtle">Return to Studio</a>
               </div>
             </div>
           `;
@@ -321,140 +318,352 @@
     })();
   </script>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen font-sans selection:bg-indigo-100 selection:text-indigo-900 flex flex-col">
 
-  <!-- Child App Standalone Fullscreen Viewport -->
+<body class="bg-slate-100/90 text-slate-800 min-h-screen flex flex-col items-center font-sans antialiased">
+
+  <!-- Standalone Child Frame -->
   <iframe id="child-frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"></iframe>
 
-  <!-- Main Parent Studio UI -->
-  <div id="parent-studio-ui" class="flex-1 flex flex-col">
-    <!-- Header -->
-    <header class="border-b border-slate-200 bg-white sticky top-0 z-30">
-      <div class="max-w-3xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-        <div class="flex items-center gap-2.5">
-          <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white text-sm shadow-sm">
-            ⚡
-          </div>
-          <div>
-            <h1 class="text-sm font-semibold text-slate-900 flex items-center gap-2">
-              App Studio
-              <span class="text-[10px] font-mono font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded">Turso Cloud Active</span>
-            </h1>
-          </div>
-        </div>
+  <!-- Mobile Device Studio Container -->
+  <div id="parent-studio-ui" class="w-full max-w-md bg-white min-h-screen flex flex-col shadow-float relative border-x border-slate-200/70">
 
-        <button id="btnClear" type="button" class="px-3 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs transition-all">
-          Clear
+    <!-- Top App Bar -->
+    <header class="pt-safe-top bg-white/90 backdrop-blur-xl sticky top-0 z-40 border-b border-slate-100 px-4 h-14 flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center shadow-sm text-white text-xs font-bold">
+          ⚡
+        </div>
+        <div>
+          <div class="flex items-center gap-1.5">
+            <h1 class="text-xs font-extrabold text-slate-900 tracking-tight leading-none">APP STUDIO</h1>
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+          </div>
+          <p class="text-[10px] text-slate-400 font-medium leading-tight mt-0.5">Mobile Builder</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-1.5">
+        <button id="btnClearCurrent" type="button" class="p-2 text-slate-400 hover:text-slate-800 active:scale-90 rounded-xl hover:bg-slate-100/80 transition-all" title="Reset Inputs">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
         </button>
       </div>
     </header>
 
-    <!-- Main Creator Form -->
-    <main class="max-w-3xl w-full mx-auto p-4 sm:p-6 flex-1 flex flex-col justify-start">
-      <div class="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm">
+    <main class="flex-1 overflow-y-auto app-scroll p-4 pb-safe-nav flex flex-col">
+
+      <!-- ================= TAB 1: STUDIO VIEW ================= -->
+      <div id="viewStudio" class="tab-view flex flex-col gap-3.5">
         
-        <!-- App Details Grid -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-          <div>
-            <label class="block text-xs font-medium text-slate-700 mb-1">App Name</label>
-            <input type="text" id="inputTitle" placeholder="e.g. Speed Converter" class="w-full bg-white border border-slate-300 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 rounded-xl px-3 py-2 text-sm text-slate-900 placeholder-slate-400 outline-none transition-all">
+        <!-- App Info Card -->
+        <div class="bg-slate-50/70 border border-slate-200/80 rounded-3xl p-4 shadow-subtle">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-[15px] font-bold uppercase tracking-wider text-slate-400">Application Identity</span>
+            <span class="text-[9px] font-semibold text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full border border-brand-100">Live Config</span>
           </div>
 
-          <div>
-            <label class="block text-xs font-medium text-slate-700 mb-1">Hosted Image URL</label>
-            <div class="flex items-center gap-2">
-              <input type="url" id="inputIconUrl" placeholder="https://example.com/icon.png" class="flex-1 bg-white border border-slate-300 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 rounded-xl px-3 py-2 text-sm text-slate-900 placeholder-slate-400 outline-none transition-all">
-              <div id="iconPreviewBox" class="w-9 h-9 rounded-lg border border-slate-200 bg-slate-100 flex items-center justify-center overflow-hidden shrink-0">
-                <span id="iconPreviewPlaceholder" class="text-xs text-slate-400">🖼️</span>
-                <img id="iconPreviewImg" src="" alt="Icon" class="w-full h-full object-cover hidden">
+          <div class="space-y-3">
+            <div>
+              <label class="block text-[11px] font-bold text-slate-700 mb-1">App Name</label>
+              <input type="text" id="inputTitle" placeholder="e.g. Health Tracker" class="w-full bg-white border border-slate-200/90 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 rounded-2xl px-3.5 py-2.5 text-xs text-slate-900 placeholder-slate-400 outline-none transition-all">
+            </div>
+
+            <div class="grid grid-cols-2 gap-2.5">
+              <div>
+                <label class="block text-[11px] font-bold text-slate-700 mb-1">Theme Color</label>
+                <div class="flex items-center gap-2 bg-white border border-slate-200/90 rounded-2xl px-2 py-1.5 focus-within:border-brand-500 transition-all">
+                  <input type="color" id="inputColorPicker" value="#4f46e5" class="w-6 h-6 rounded-lg border-0 bg-transparent cursor-pointer shrink-0">
+                  <input type="text" id="inputThemeColor" value="#4f46e5" class="w-full bg-transparent text-slate-800 text-[11px] font-mono outline-none">
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-bold text-slate-700 mb-1">Icon URL</label>
+                <div class="flex items-center gap-1.5 bg-white border border-slate-200/90 rounded-2xl px-2.5 py-1.5 focus-within:border-brand-500 transition-all">
+                  <div id="iconMiniPreview" class="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 overflow-hidden text-[10px]">
+                    <span id="iconMiniPlaceholder">🖼️</span>
+                    <img id="iconMiniImg" src="" alt="ico" class="w-full h-full object-cover hidden">
+                  </div>
+                  <input type="url" id="inputIconUrl" placeholder="https://..." class="w-full bg-transparent text-slate-800 text-[11px] placeholder-slate-400 outline-none truncate">
+                </div>
               </div>
             </div>
           </div>
+        </div>
 
-          <div>
-            <label class="block text-xs font-medium text-slate-700 mb-1">Splash / BG Color</label>
-            <div class="flex items-center gap-2">
-              <input type="color" id="inputColorPicker" value="#0f172a" class="w-9 h-9 p-0.5 rounded-lg border border-slate-300 bg-white cursor-pointer shrink-0">
-              <input type="text" id="inputThemeColor" value="#0f172a" placeholder="#0f172a" class="w-full bg-white border border-slate-300 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 rounded-xl px-3 py-2 text-sm text-slate-900 font-mono outline-none transition-all">
+        <div class="bg-slate-50/70 border border-slate-200/80 rounded-3xl p-4 shadow-subtle flex flex-col">
+          <div class="flex items-center justify-between mb-2.5">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></span>
+              <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Code Workspace</span>
+            </div>
+
+            <!-- Controlled Actions Toolbar (ONLY Paste and Delete) -->
+            <div class="inline-flex items-center bg-white p-0.5 rounded-xl border border-slate-200/90 shadow-2xs gap-1">
+              <!-- Paste Button -->
+              <button type="button" id="btnPasteCode" title="Paste copied code into box" class="flex items-center gap-1 px-3 py-1.5 text-[11px] font-bold text-brand-700 hover:text-brand-900 hover:bg-brand-50 rounded-lg active:scale-95 transition-all">
+                <svg class="w-3.5 h-3.5 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                <span>Paste</span>
+              </button>
+
+              <!-- Delete Button -->
+              <button type="button" id="btnDeleteCode" title="Delete code completely" class="flex items-center gap-1 px-3 py-1.5 text-[11px] font-bold text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-lg active:scale-95 transition-all">
+                <svg class="w-3.5 h-3.5 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                <span>Delete</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Code Input Box -->
+          <div class="relative group">
+            <textarea id="inputCode" readonly rows="12" placeholder="Tap 'Paste' above to load HTML/CSS/JS..." class="w-full bg-slate-900 text-slate-100 border border-slate-800 rounded-2xl p-3.5 text-xs font-mono placeholder-slate-500 outline-none resize-none leading-relaxed transition-all cursor-default select-all"></textarea>
+            
+            <div id="codeCharCounter" class="absolute bottom-2.5 right-3 text-[10px] font-mono text-slate-400 bg-slate-800/90 border border-slate-700/80 px-2 py-0.5 rounded-md pointer-events-none">
+              0 chars
             </div>
           </div>
         </div>
 
-        <!-- HTML Code Editor Textarea -->
-        <div class="mb-5">
-          <label for="inputCode" class="block text-xs font-medium text-slate-700 mb-1">HTML / CSS / JS Code</label>
-          <textarea id="inputCode" rows="15" placeholder="Paste full HTML code here..." class="w-full bg-slate-900 text-slate-100 border border-slate-800 rounded-xl p-3.5 text-xs sm:text-sm font-mono placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none resize-y leading-relaxed transition-all"></textarea>
-        </div>
+        <!-- Action Control Buttons -->
+        <div class="grid grid-cols-2 gap-2.5 pt-0.5">
+          <!-- Temp Mode: Auto named temp 1, temp 2, stored in Turso under Temp category -->
+          <button id="btnCreateTempApp" type="button" class="py-3 px-3 rounded-2xl bg-amber-50 hover:bg-amber-100/80 active:scale-95 border border-amber-200/90 text-amber-900 font-bold text-xs flex items-center justify-center gap-1.5 shadow-subtle transition-all">
+            <span class="text-sm">⚡</span>
+            <span>Run as Temp</span>
+            <span id="btnTempSpinner" class="hidden animate-spin text-xs">⏳</span>
+          </button>
 
-        <!-- Submit Button -->
-        <div class="flex items-center justify-end">
-          <button id="btnCreateApp" class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-semibold text-sm shadow-sm transition-all flex items-center justify-center gap-2">
-            <span id="btnCreateText">Create App</span>
+          <!-- Cloud Mode: Saved to Turso under Saved category -->
+          <button id="btnCreateApp" type="button" class="py-3 px-3 rounded-2xl bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-float transition-all">
+            <span id="btnCreateIcon">🚀</span>
+            <span id="btnCreateText">Save & Launch</span>
             <span id="btnCreateSpinner" class="hidden animate-spin">⏳</span>
           </button>
         </div>
+
       </div>
+
+      <!-- ================= TAB 2: SITES LIBRARY (SAVED & TEMP CLOUD APPS) ================= -->
+      <div id="viewSites" class="tab-view flex flex-col gap-3.5 hidden">
+        
+        <!-- Header & Refresh -->
+        <div class="flex items-center justify-between px-1">
+          <div>
+            <h2 class="text-xs font-extrabold uppercase tracking-wider text-slate-900">Sites Library</h2>
+            <p class="text-[11px] text-slate-400">All cloud applications & temporary tests</p>
+          </div>
+          <button id="btnSyncTurso" class="p-1.5 text-slate-400 hover:text-slate-800 active:scale-90 rounded-xl hover:bg-slate-100 transition-all" title="Reload from Turso">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+          </button>
+        </div>
+
+        <!-- Inside-UI Segmented Filter: Saved vs Temp -->
+        <div class="bg-slate-200/70 p-1 rounded-2xl flex items-center gap-1">
+          <button id="tabFilterSaved" type="button" class="flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all shadow-xs bg-white text-slate-900 flex items-center justify-center gap-1.5">
+            <span>Saved Sites</span>
+            <span id="countSavedBadge" class="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-700">0</span>
+          </button>
+          <button id="tabFilterTemp" type="button" class="flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all text-slate-500 hover:text-slate-800 flex items-center justify-center gap-1.5">
+            <span>Temp Sites</span>
+            <span id="countTempBadge" class="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800">0</span>
+          </button>
+        </div>
+
+        <!-- Sites List Container -->
+        <div id="sitesListContainer" class="flex flex-col gap-2.5">
+          <!-- Populated by JavaScript from Turso -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="noSitesEmptyState" class="py-14 flex flex-col items-center justify-center text-center p-6 bg-slate-50/70 border border-dashed border-slate-200 rounded-3xl hidden">
+          <span id="emptyStateIcon" class="text-3xl mb-2">📦</span>
+          <h3 id="emptyStateTitle" class="text-xs font-bold text-slate-800 mb-0.5">No Saved Sites Yet</h3>
+          <p id="emptyStateDesc" class="text-[11px] text-slate-400 max-w-xs mb-3.5">Use "Save & Launch" in Studio to store permanent cloud apps here.</p>
+          <button id="btnEmptyGoCreate" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-[11px] font-bold shadow-subtle active:scale-95 transition-all">Create an App</button>
+        </div>
+      </div>
+
     </main>
+
+    <nav class="fixed bottom-0 w-full max-w-md bg-white/90 backdrop-blur-xl border-t border-slate-200/80 shadow-nav z-40 px-4 py-2 pb-[max(0.6rem,env(safe-area-inset-bottom))] flex items-center justify-around">
+      
+      <!-- Tab 1: Studio -->
+      <button type="button" data-tab="viewStudio" class="bottom-tab-btn flex-1 flex flex-col items-center justify-center py-1 rounded-2xl text-slate-900 font-bold transition-all active:scale-95">
+        <div class="w-9 h-9 rounded-2xl flex items-center justify-center bg-slate-900 text-white mb-0.5 transition-all tab-icon-box shadow-xs">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+        </div>
+        <span class="text-[10px] tracking-tight">Studio</span>
+      </button>
+
+      <!-- Tab 2: Sites (Only the name shows, no count badge) -->
+      <button type="button" data-tab="viewSites" class="bottom-tab-btn flex-1 flex flex-col items-center justify-center py-1 rounded-2xl text-slate-400 hover:text-slate-700 font-semibold transition-all active:scale-95">
+        <div class="w-9 h-9 rounded-2xl flex items-center justify-center bg-transparent mb-0.5 transition-all tab-icon-box">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+        </div>
+        <span class="text-[10px] tracking-tight">Sites</span>
+      </button>
+
+    </nav>
   </div>
 
-  <div id="modalOverlay" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white border border-slate-200 rounded-2xl p-6 max-w-sm w-full shadow-xl text-center flex flex-col items-center animate-in fade-in zoom-in-95 duration-150">
-      <div id="modalIconContainer" class="w-16 h-16 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center overflow-hidden mb-3 shadow-sm">
+  <!-- Launch Modal -->
+  <div id="modalOverlay" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white border border-slate-200/90 rounded-3xl p-6 max-w-xs w-full shadow-float text-center flex flex-col items-center animate-in fade-in zoom-in-95 duration-150">
+      <div id="modalIconContainer" class="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center overflow-hidden mb-3.5 shadow-inner">
         <img id="modalIconImg" src="" alt="App Icon" class="w-full h-full object-cover hidden">
         <span id="modalIconFallback" class="text-2xl">⚡</span>
       </div>
       
-      <h3 id="modalAppTitle" class="text-base font-bold text-slate-900 mb-1">App Ready</h3>
-      <p class="text-xs text-slate-500 mb-5">Saved to Turso Cloud. Clean URL is ready to launch or add to your home screen.</p>
+      <div id="modalBadge" class="text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full mb-1 bg-slate-100 text-slate-800">Ready</div>
+      <h3 id="modalAppTitle" class="text-base font-extrabold text-slate-900 mb-1">App Ready</h3>
+      <p id="modalAppDesc" class="text-xs text-slate-500 mb-5">Open your full phone ratio application immediately.</p>
       
       <div class="flex flex-col w-full gap-2">
-        <a id="btnModalOpen" target="_blank" href="#" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs sm:text-sm transition-all shadow-sm flex items-center justify-center gap-1.5">
-          <span>Open the App</span>
-          <span>↗</span>
+        <a id="btnModalOpen" target="_blank" href="#" class="w-full py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition-all shadow-subtle flex items-center justify-center gap-1.5 active:scale-95">
+          <span>Open App Now</span>
+          <span class="text-sm">↗</span>
         </a>
-        <button id="btnModalCopyLink" class="w-full py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium text-xs transition-all flex items-center justify-center gap-1.5">
-          <span>📋</span>
-          <span>Copy App Link</span>
+        <button id="btnModalClose" class="w-full py-2.5 rounded-2xl text-slate-500 hover:text-slate-800 font-semibold text-xs transition-all">
+          Back to Studio
         </button>
-        <button id="btnModalClose" class="w-full py-2 rounded-xl text-slate-500 hover:text-slate-700 text-xs transition-all">
-          Close
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div id="confirmDeleteModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white border border-slate-200/90 rounded-3xl p-6 max-w-xs w-full shadow-float text-center flex flex-col items-center animate-in fade-in zoom-in-95 duration-150">
+      <div class="w-14 h-14 rounded-2xl bg-rose-50 text-rose-500 border border-rose-100 flex items-center justify-center mb-3 text-2xl font-bold shadow-xs">
+        🗑️
+      </div>
+      <h3 class="text-base font-extrabold text-slate-900 mb-1">Delete Site?</h3>
+      <p class="text-xs text-slate-500 mb-1">Are you sure you want to permanently delete</p>
+      <p id="confirmDeleteSiteName" class="text-xs font-bold text-slate-800 mb-5 truncate max-w-[220px] px-2"></p>
+      
+      <div class="flex flex-col w-full gap-2">
+        <button id="btnConfirmDelete" type="button" class="w-full py-3 rounded-2xl bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-bold text-xs transition-all shadow-subtle flex items-center justify-center gap-1.5">
+          <span>Yes, Delete</span>
+          <span id="confirmDeleteSpinner" class="hidden animate-spin">⏳</span>
+        </button>
+        <button id="btnCancelDelete" type="button" class="w-full py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition-all active:scale-95">
+          Cancel
         </button>
       </div>
     </div>
   </div>
 
   <!-- Notification Toast -->
-  <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none bg-slate-900 text-white text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-2">
+  <div id="toast" class="fixed top-5 z-50 transform -translate-y-16 opacity-0 transition-all duration-300 pointer-events-none bg-slate-900/95 backdrop-blur-md text-white text-xs px-4 py-2.5 rounded-2xl shadow-float flex items-center gap-2 border border-slate-700/80">
     <span id="toastIcon">✨</span>
-    <span id="toastMsg">Notification message</span>
+    <span id="toastMsg" class="font-medium">Notice</span>
   </div>
 
   <script>
-    // DOM Elements
+    // Studio Inputs
     const inputTitle = document.getElementById('inputTitle');
     const inputIconUrl = document.getElementById('inputIconUrl');
-    const iconPreviewImg = document.getElementById('iconPreviewImg');
-    const iconPreviewPlaceholder = document.getElementById('iconPreviewPlaceholder');
+    const iconMiniImg = document.getElementById('iconMiniImg');
+    const iconMiniPlaceholder = document.getElementById('iconMiniPlaceholder');
     const inputColorPicker = document.getElementById('inputColorPicker');
     const inputThemeColor = document.getElementById('inputThemeColor');
     const inputCode = document.getElementById('inputCode');
+    const codeCharCounter = document.getElementById('codeCharCounter');
+    
+    // Strict Paste and Delete buttons only
+    const btnPasteCode = document.getElementById('btnPasteCode');
+    const btnDeleteCode = document.getElementById('btnDeleteCode');
+
+    // Trigger Buttons
     const btnCreateApp = document.getElementById('btnCreateApp');
+    const btnCreateTempApp = document.getElementById('btnCreateTempApp');
     const btnCreateText = document.getElementById('btnCreateText');
+    const btnCreateIcon = document.getElementById('btnCreateIcon');
     const btnCreateSpinner = document.getElementById('btnCreateSpinner');
-    const btnClear = document.getElementById('btnClear');
+    const btnTempSpinner = document.getElementById('btnTempSpinner');
+    const btnClearCurrent = document.getElementById('btnClearCurrent');
+
+    // Navigation & Tabs
+    const tabButtons = document.querySelectorAll('.bottom-tab-btn');
+    const tabViews = document.querySelectorAll('.tab-view');
+
+    // Sites Tab Elements
+    const sitesListContainer = document.getElementById('sitesListContainer');
+    const noSitesEmptyState = document.getElementById('noSitesEmptyState');
+    const emptyStateIcon = document.getElementById('emptyStateIcon');
+    const emptyStateTitle = document.getElementById('emptyStateTitle');
+    const emptyStateDesc = document.getElementById('emptyStateDesc');
+    const btnEmptyGoCreate = document.getElementById('btnEmptyGoCreate');
+    const btnSyncTurso = document.getElementById('btnSyncTurso');
+
+    // Segmented Filters
+    const tabFilterSaved = document.getElementById('tabFilterSaved');
+    const tabFilterTemp = document.getElementById('tabFilterTemp');
+    const countSavedBadge = document.getElementById('countSavedBadge');
+    const countTempBadge = document.getElementById('countTempBadge');
 
     // Modal Elements
     const modalOverlay = document.getElementById('modalOverlay');
+    const modalBadge = document.getElementById('modalBadge');
     const modalAppTitle = document.getElementById('modalAppTitle');
+    const modalAppDesc = document.getElementById('modalAppDesc');
     const modalIconImg = document.getElementById('modalIconImg');
     const modalIconFallback = document.getElementById('modalIconFallback');
     const btnModalOpen = document.getElementById('btnModalOpen');
-    const btnModalCopyLink = document.getElementById('btnModalCopyLink');
     const btnModalClose = document.getElementById('btnModalClose');
 
+    // Delete Confirmation Modal Elements
+    const confirmDeleteModal = document.getElementById('confirmDeleteModal');
+    const confirmDeleteSiteName = document.getElementById('confirmDeleteSiteName');
+    const btnConfirmDelete = document.getElementById('btnConfirmDelete');
+    const btnCancelDelete = document.getElementById('btnCancelDelete');
+    const confirmDeleteSpinner = document.getElementById('confirmDeleteSpinner');
+    let siteIdToDelete = null;
+
+    // State Variables
+    let currentFilter = 'saved'; // 'saved' or 'temp'
+    let allSites = [];
     let currentGeneratedUrl = '';
 
-    // Color Pickers Synchronization
+    function switchTab(targetViewId) {
+      tabViews.forEach(view => {
+        if (view.id === targetViewId) {
+          view.classList.remove('hidden');
+        } else {
+          view.classList.add('hidden');
+        }
+      });
+
+      tabButtons.forEach(btn => {
+        const isMatch = btn.getAttribute('data-tab') === targetViewId;
+        const iconBox = btn.querySelector('.tab-icon-box');
+        if (isMatch) {
+          btn.classList.add('text-slate-900', 'font-bold');
+          btn.classList.remove('text-slate-400', 'font-semibold');
+          iconBox.classList.add('bg-slate-900', 'text-white', 'shadow-xs');
+          iconBox.classList.remove('bg-transparent', 'text-slate-500');
+        } else {
+          btn.classList.remove('text-slate-900', 'font-bold');
+          btn.classList.add('text-slate-400', 'font-semibold');
+          iconBox.classList.remove('bg-slate-900', 'text-white', 'shadow-xs');
+          iconBox.classList.add('bg-transparent', 'text-slate-500');
+        }
+      });
+
+      if (targetViewId === 'viewSites') {
+        renderSitesList();
+      }
+    }
+
+    tabButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        switchTab(btn.getAttribute('data-tab'));
+      });
+    });
+
+    btnEmptyGoCreate.addEventListener('click', () => {
+      switchTab('viewStudio');
+    });
+
+    // Color Pickers
     inputColorPicker.addEventListener('input', () => {
       inputThemeColor.value = inputColorPicker.value;
     });
@@ -466,80 +675,95 @@
       }
     });
 
-    // Live Thumbnail Preview for Hosted Image URL
+    // Icon URL Preview
     inputIconUrl.addEventListener('input', () => {
       let url = inputIconUrl.value.trim();
-      if (url.startsWith('http://')) {
-        url = url.replace('http://', 'https://');
-      }
+      if (url.startsWith('http://')) url = url.replace('http://', 'https://');
       if (url) {
-        iconPreviewImg.src = url;
-        iconPreviewImg.onload = () => {
-          iconPreviewImg.classList.remove('hidden');
-          iconPreviewPlaceholder.classList.add('hidden');
+        iconMiniImg.src = url;
+        iconMiniImg.onload = () => {
+          iconMiniImg.classList.remove('hidden');
+          iconMiniPlaceholder.classList.add('hidden');
         };
-        iconPreviewImg.onerror = () => {
-          iconPreviewImg.classList.add('hidden');
-          iconPreviewPlaceholder.classList.remove('hidden');
+        iconMiniImg.onerror = () => {
+          iconMiniImg.classList.add('hidden');
+          iconMiniPlaceholder.classList.remove('hidden');
         };
       } else {
-        iconPreviewImg.src = '';
-        iconPreviewImg.classList.add('hidden');
-        iconPreviewPlaceholder.classList.remove('hidden');
+        iconMiniImg.src = '';
+        iconMiniImg.classList.add('hidden');
+        iconMiniPlaceholder.classList.remove('hidden');
       }
     });
 
-    // Custom Toast Notification
+    // Toast
     function showToast(message, icon = '✨') {
       const toast = document.getElementById('toast');
       const toastMsg = document.getElementById('toastMsg');
       const toastIcon = document.getElementById('toastIcon');
       toastMsg.innerText = message;
       toastIcon.innerText = icon;
-      toast.classList.remove('translate-y-20', 'opacity-0');
+      toast.classList.remove('-translate-y-16', 'opacity-0');
       toast.classList.add('translate-y-0', 'opacity-100');
 
       setTimeout(() => {
         toast.classList.remove('translate-y-0', 'opacity-100');
-        toast.classList.add('translate-y-20', 'opacity-0');
-      }, 2500);
+        toast.classList.add('-translate-y-16', 'opacity-0');
+      }, 2200);
     }
 
-    // Clear form
-    btnClear.addEventListener('click', () => {
+    // 1. PASTE ONLY
+    btnPasteCode.addEventListener('click', async () => {
+      try {
+        let text = '';
+        if (navigator.clipboard && navigator.clipboard.readText) {
+          text = await navigator.clipboard.readText();
+        }
+
+        if (!text) {
+          text = prompt("Paste your code here:");
+        }
+
+        if (text && text.trim()) {
+          inputCode.value = text;
+          codeCharCounter.textContent = `${text.length.toLocaleString()} chars`;
+          showToast('Code pasted!', '📋');
+        } else {
+          showToast('Clipboard is empty', '⚠️');
+        }
+      } catch (err) {
+        const text = prompt("Paste your code here:");
+        if (text && text.trim()) {
+          inputCode.value = text;
+          codeCharCounter.textContent = `${text.length.toLocaleString()} chars`;
+          showToast('Code pasted!', '📋');
+        }
+      }
+    });
+
+    // 2. DELETE ONLY
+    btnDeleteCode.addEventListener('click', () => {
+      if (!inputCode.value.trim()) {
+        showToast('Code box is already empty', 'ℹ️');
+        return;
+      }
+      inputCode.value = '';
+      codeCharCounter.textContent = '0 chars';
+      showToast('Code deleted!', '🗑️');
+    });
+
+    // Reset current form inputs
+    btnClearCurrent.addEventListener('click', () => {
       inputTitle.value = '';
       inputIconUrl.value = '';
-      iconPreviewImg.src = '';
-      iconPreviewImg.classList.add('hidden');
-      iconPreviewPlaceholder.classList.remove('hidden');
-      inputThemeColor.value = '#0f172a';
-      inputColorPicker.value = '#0f172a';
+      iconMiniImg.src = '';
+      iconMiniImg.classList.add('hidden');
+      iconMiniPlaceholder.classList.remove('hidden');
+      inputThemeColor.value = '#4f46e5';
+      inputColorPicker.value = '#4f46e5';
       inputCode.value = '';
-      inputTitle.focus();
-    });
-
-    // Modal Events
-    btnModalClose.addEventListener('click', () => {
-      modalOverlay.classList.add('hidden');
-    });
-
-    modalOverlay.addEventListener('click', (e) => {
-      if (e.target === modalOverlay) modalOverlay.classList.add('hidden');
-    });
-
-    btnModalCopyLink.addEventListener('click', () => {
-      if (!currentGeneratedUrl) return;
-      const dummy = document.createElement('textarea');
-      dummy.value = currentGeneratedUrl;
-      document.body.appendChild(dummy);
-      dummy.select();
-      try {
-        document.execCommand('copy');
-        showToast('Link copied to clipboard!', '📋');
-      } catch (err) {
-        showToast('Failed to copy', '⚠️');
-      }
-      document.body.removeChild(dummy);
+      codeCharCounter.textContent = '0 chars';
+      showToast('Form cleared', '🧹');
     });
 
     function getNormalizedBasePath() {
@@ -550,52 +774,215 @@
       return `${window.location.origin}${path}`;
     }
 
-    btnCreateApp.addEventListener('click', async () => {
-      const title = inputTitle.value.trim();
-      let iconUrl = inputIconUrl.value.trim();
-      const themeColor = inputThemeColor.value.trim() || '#0f172a';
-      const code = inputCode.value;
+    async function loadAllSitesFromTurso() {
+      try {
+        await ensureTableExists();
+        const result = await queryTurso("SELECT id, name, icon, color, is_temp, created_at FROM apps ORDER BY created_at DESC;");
+        if (result && result.rows) {
+          allSites = result.rows.map(row => ({
+            id: row[0]?.value || '',
+            name: row[1]?.value || 'App',
+            icon: row[2]?.value || '',
+            color: row[3]?.value || '#4f46e5',
+            isTemp: row[4]?.value === "1" || row[4]?.value === 1,
+            createdAt: Number(row[5]?.value) || 0
+          }));
+          localStorage.setItem('appstudio_cached_sites', JSON.stringify(allSites));
+        }
+      } catch (err) {
+        console.warn("Loading from Turso failed, loading offline cache:", err);
+        const cached = localStorage.getItem('appstudio_cached_sites');
+        if (cached) {
+          try { allSites = JSON.parse(cached); } catch(e){}
+        }
+      }
+      renderSitesList();
+    }
 
-      if (!title) {
-        showToast('Please enter an App Name', '⚠️');
-        inputTitle.focus();
+    function renderSitesList() {
+      const savedSites = allSites.filter(s => !s.isTemp);
+      const tempSites = allSites.filter(s => !!s.isTemp);
+
+      countSavedBadge.textContent = savedSites.length;
+      countTempBadge.textContent = tempSites.length;
+
+      const activeList = currentFilter === 'saved' ? savedSites : tempSites;
+      sitesListContainer.innerHTML = '';
+
+      if (activeList.length === 0) {
+        noSitesEmptyState.classList.remove('hidden');
+        sitesListContainer.classList.add('hidden');
+
+        if (currentFilter === 'saved') {
+          emptyStateIcon.textContent = '📦';
+          emptyStateTitle.textContent = 'No Saved Sites Yet';
+          emptyStateDesc.textContent = 'Use "Save & Launch" in Studio to store your permanent cloud apps here.';
+        } else {
+          emptyStateIcon.textContent = '⚡';
+          emptyStateTitle.textContent = 'No Temp Sites Yet';
+          emptyStateDesc.textContent = 'Use "Run as Temp" in Studio to quickly test apps without cluttering saved sites.';
+        }
         return;
       }
 
-      if (!code.trim()) {
-        showToast('Code cannot be empty', '⚠️');
-        inputCode.focus();
-        return;
+      noSitesEmptyState.classList.add('hidden');
+      sitesListContainer.classList.remove('hidden');
+
+      activeList.forEach(site => {
+        const card = document.createElement('div');
+        card.className = "bg-white border border-slate-200/90 rounded-2xl p-3 shadow-subtle flex items-center justify-between gap-3";
+        const targetUrl = `${getNormalizedBasePath()}?app=${encodeURIComponent(site.id)}`;
+
+        card.innerHTML = `
+          <div class="flex items-center gap-2.5 min-w-0 flex-1">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-white font-bold text-sm shadow-xs overflow-hidden" style="background-color: ${site.color || '#4f46e5'}">
+              ${site.icon ? `<img src="${site.icon}" class="w-full h-full object-cover" onerror="this.outerHTML='<span>${site.isTemp ? '⚡' : '🚀'}</span>'">` : `<span>${site.isTemp ? '⚡' : '🚀'}</span>`}
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-1.5">
+                <h4 class="text-xs font-bold text-slate-800 truncate">${site.name}</h4>
+                <span class="text-[9px] font-bold px-1.5 py-0.2 rounded ${site.isTemp ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-indigo-50 text-indigo-700 border border-indigo-100'}">
+                  ${site.isTemp ? 'TEMP' : 'SAVED'}
+                </span>
+              </div>
+              <p class="text-[10px] text-slate-400 font-mono truncate">${site.id}</p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-1.5 shrink-0">
+            <a href="${targetUrl}" target="_blank" class="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-[11px] active:scale-95 transition-all shadow-subtle flex items-center gap-1">
+              <span>Run</span>
+              <span>↗</span>
+            </a>
+            <button class="btn-delete-site p-1.5 text-slate-400 hover:text-rose-500 rounded-xl hover:bg-rose-50 transition-colors" data-id="${site.id}" data-name="${site.name.replace(/"/g, '&quot;')}" title="Delete from Turso">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            </button>
+          </div>
+        `;
+
+        sitesListContainer.appendChild(card);
+      });
+
+      sitesListContainer.querySelectorAll('.btn-delete-site').forEach(btn => {
+        btn.addEventListener('click', () => {
+          siteIdToDelete = btn.getAttribute('data-id');
+          const siteName = btn.getAttribute('data-name') || 'this site';
+          confirmDeleteSiteName.textContent = `"${siteName}"`;
+          confirmDeleteModal.classList.remove('hidden');
+        });
+      });
+    }
+
+    btnCancelDelete.addEventListener('click', () => {
+      confirmDeleteModal.classList.add('hidden');
+      siteIdToDelete = null;
+    });
+
+    confirmDeleteModal.addEventListener('click', (e) => {
+      if (e.target === confirmDeleteModal) {
+        confirmDeleteModal.classList.add('hidden');
+        siteIdToDelete = null;
       }
+    });
 
-      if (iconUrl.startsWith('http://')) {
-        iconUrl = iconUrl.replace('http://', 'https://');
-      }
-
-      // Generate a clean slug ID
-      const baseSlug = title.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'app';
-      const randomSuffix = Math.random().toString(36).substring(2, 6);
-      const appId = `${baseSlug}-${randomSuffix}`;
-
-      // Show loading state
-      btnCreateApp.disabled = true;
-      btnCreateText.textContent = "Saving to Turso...";
-      btnCreateSpinner.classList.remove('hidden');
+    btnConfirmDelete.addEventListener('click', async () => {
+      if (!siteIdToDelete) return;
+      btnConfirmDelete.disabled = true;
+      confirmDeleteSpinner.classList.remove('hidden');
 
       try {
-        // Ensure table exists & Insert app data directly into Turso
+        // Live delete from Turso Cloud Database
+        await queryTurso("DELETE FROM apps WHERE id = ?;", [siteIdToDelete]);
+        allSites = allSites.filter(item => item.id !== siteIdToDelete);
+        localStorage.setItem('appstudio_cached_sites', JSON.stringify(allSites));
+        renderSitesList();
+        confirmDeleteModal.classList.add('hidden');
+        showToast('Site deleted from Turso', '🗑️');
+      } catch (err) {
+        console.error("Delete failed:", err);
+        showToast('Delete failed: ' + err.message, '⚠️');
+      } finally {
+        btnConfirmDelete.disabled = false;
+        confirmDeleteSpinner.classList.add('hidden');
+        siteIdToDelete = null;
+      }
+    });
+
+    tabFilterSaved.addEventListener('click', () => {
+      currentFilter = 'saved';
+      tabFilterSaved.className = "flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all shadow-xs bg-white text-slate-900 flex items-center justify-center gap-1.5";
+      tabFilterTemp.className = "flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all text-slate-500 hover:text-slate-800 flex items-center justify-center gap-1.5";
+      renderSitesList();
+    });
+
+    tabFilterTemp.addEventListener('click', () => {
+      currentFilter = 'temp';
+      tabFilterTemp.className = "flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all shadow-xs bg-white text-amber-900 flex items-center justify-center gap-1.5";
+      tabFilterSaved.className = "flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all text-slate-500 hover:text-slate-800 flex items-center justify-center gap-1.5";
+      renderSitesList();
+    });
+
+    btnSyncTurso.addEventListener('click', async () => {
+      showToast('Syncing with Turso...', '🔄');
+      await loadAllSitesFromTurso();
+      showToast('Sites updated!', '✨');
+    });
+
+    // Modal Close logic
+    btnModalClose.addEventListener('click', () => {
+      modalOverlay.classList.add('hidden');
+    });
+    modalOverlay.addEventListener('click', (e) => {
+      if (e.target === modalOverlay) modalOverlay.classList.add('hidden');
+    });
+
+    btnCreateTempApp.addEventListener('click', async () => {
+      const code = inputCode.value;
+      if (!code.trim()) {
+        showToast('Paste code before testing', '⚠️');
+        return;
+      }
+
+      // Auto-calculate temp index from existing temp apps
+      const tempCount = allSites.filter(s => s.isTemp).length + 1;
+      const autoTempName = `temp ${tempCount}`;
+      const tempId = `temp-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
+      const themeColor = inputThemeColor.value.trim() || '#f59e0b';
+      let iconUrl = inputIconUrl.value.trim();
+      if (iconUrl.startsWith('http://')) iconUrl = iconUrl.replace('http://', 'https://');
+
+      btnCreateTempApp.disabled = true;
+      btnTempSpinner.classList.remove('hidden');
+
+      try {
         await ensureTableExists();
+        // Insert temp site into Turso with is_temp = 1
         await queryTurso(
-          `INSERT OR REPLACE INTO apps (id, name, icon, color, code, created_at) VALUES (?, ?, ?, ?, ?, ?);`,
-          [appId, title, iconUrl, themeColor, code, Date.now()]
+          `INSERT OR REPLACE INTO apps (id, name, icon, color, code, created_at, is_temp) VALUES (?, ?, ?, ?, ?, ?, 1);`,
+          [tempId, autoTempName, iconUrl, themeColor, code, Date.now()]
         );
 
-        // Construct short, clean URL (safe for iOS, Android, and GitHub Pages)
-        const base = getNormalizedBasePath();
-        currentGeneratedUrl = `${base}?app=${encodeURIComponent(appId)}`;
+        const newTempSite = {
+          id: tempId,
+          name: autoTempName,
+          icon: iconUrl,
+          color: themeColor,
+          isTemp: true,
+          createdAt: Date.now()
+        };
 
-        // Configure Modal
-        modalAppTitle.innerText = title;
+        allSites.unshift(newTempSite);
+        localStorage.setItem('appstudio_cached_sites', JSON.stringify(allSites));
+        renderSitesList();
+
+        const base = getNormalizedBasePath();
+        currentGeneratedUrl = `${base}?app=${encodeURIComponent(tempId)}`;
+
+        // Launch Modal
+        modalBadge.textContent = "Temporary Preview";
+        modalBadge.className = "text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full mb-1 bg-amber-100 text-amber-800";
+        modalAppTitle.innerText = autoTempName;
+        modalAppDesc.innerText = `Auto-saved as "${autoTempName}" in Turso. Accessible anytime in Sites > Temp.`;
         btnModalOpen.href = currentGeneratedUrl;
 
         if (iconUrl) {
@@ -605,21 +992,113 @@
         } else {
           modalIconImg.classList.add('hidden');
           modalIconFallback.classList.remove('hidden');
+          modalIconFallback.innerText = '⚡';
         }
 
-        // Open ready popup
         modalOverlay.classList.remove('hidden');
-        showToast('Saved to Turso Database!', '🚀');
+        showToast(`Created & saved ${autoTempName}!`, '⚡');
+      } catch (err) {
+        console.error("Temp save error:", err);
+        showToast(`Failed: ${err.message}`, '⚠️');
+      } finally {
+        btnCreateTempApp.disabled = false;
+        btnTempSpinner.classList.add('hidden');
+      }
+    });
+
+    btnCreateApp.addEventListener('click', async () => {
+      const title = inputTitle.value.trim();
+      let iconUrl = inputIconUrl.value.trim();
+      const themeColor = inputThemeColor.value.trim() || '#4f46e5';
+      const code = inputCode.value;
+
+      if (!title) {
+        showToast('Enter an App Name first', '⚠️');
+        inputTitle.focus();
+        return;
+      }
+
+      if (!code.trim()) {
+        showToast('Paste code before creating', '⚠️');
+        return;
+      }
+
+      if (iconUrl.startsWith('http://')) iconUrl = iconUrl.replace('http://', 'https://');
+
+      const baseSlug = title.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'app';
+      const randomSuffix = Math.random().toString(36).substring(2, 6);
+      const appId = `${baseSlug}-${randomSuffix}`;
+
+      // Loading State
+      btnCreateApp.disabled = true;
+      btnCreateText.textContent = "Deploying...";
+      btnCreateIcon.classList.add('hidden');
+      btnCreateSpinner.classList.remove('hidden');
+
+      try {
+        await ensureTableExists();
+        await queryTurso(
+          `INSERT OR REPLACE INTO apps (id, name, icon, color, code, created_at, is_temp) VALUES (?, ?, ?, ?, ?, ?, 0);`,
+          [appId, title, iconUrl, themeColor, code, Date.now()]
+        );
+
+        const newCloudSite = {
+          id: appId,
+          name: title,
+          icon: iconUrl,
+          color: themeColor,
+          isTemp: false,
+          createdAt: Date.now()
+        };
+
+        allSites = allSites.filter(s => s.id !== appId);
+        allSites.unshift(newCloudSite);
+        localStorage.setItem('appstudio_cached_sites', JSON.stringify(allSites));
+        renderSitesList();
+
+        const base = getNormalizedBasePath();
+        currentGeneratedUrl = `${base}?app=${encodeURIComponent(appId)}`;
+
+        // Modal Display
+        modalBadge.textContent = "Cloud App Active";
+        modalBadge.className = "text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full mb-1 bg-brand-50 text-brand-700";
+        modalAppTitle.innerText = title;
+        modalAppDesc.innerText = "Saved to Turso Cloud & your Saved Sites library.";
+        btnModalOpen.href = currentGeneratedUrl;
+
+        if (iconUrl) {
+          modalIconImg.src = iconUrl;
+          modalIconImg.classList.remove('hidden');
+          modalIconFallback.classList.add('hidden');
+        } else {
+          modalIconImg.classList.add('hidden');
+          modalIconFallback.classList.remove('hidden');
+          modalIconFallback.innerText = '🚀';
+        }
+
+        modalOverlay.classList.remove('hidden');
+        showToast('Saved to Turso & Sites!', '🚀');
 
       } catch (err) {
         console.error("Save error:", err);
         showToast(`Failed: ${err.message}`, '⚠️');
       } finally {
         btnCreateApp.disabled = false;
-        btnCreateText.textContent = "Create App";
+        btnCreateText.textContent = "Save & Launch";
+        btnCreateIcon.classList.remove('hidden');
         btnCreateSpinner.classList.add('hidden');
       }
     });
+
+    // Load from cache instantly, then sync live from Turso
+    const initialCached = localStorage.getItem('appstudio_cached_sites');
+    if (initialCached) {
+      try {
+        allSites = JSON.parse(initialCached);
+        renderSitesList();
+      } catch (e) {}
+    }
+    loadAllSitesFromTurso();
   </script>
 </body>
 </html>
